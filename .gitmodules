@@ -1,0 +1,12 @@
+[submodule "libraries/minhook"]
+	path = libraries/minhook
+	url = https://github.com/hjfod/minhook
+[submodule "libraries/cocos-headers"]
+	path = libraries/cocos-headers
+	url = https://github.com/hjfod/cocos-headers
+[submodule "libraries/gd.h"]
+	path = libraries/gd.h
+	url = https://github.com/hjfod/gd.h
+[submodule "libraries/nativefiledialog"]
+	path = libraries/nativefiledialog
+	url = https://github.com/mlabbe/nativefiledialog
