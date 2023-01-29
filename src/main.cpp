@@ -13,7 +13,7 @@ bool __fastcall PlayLayer_initH(gd::PlayLayer* self, uintptr_t, gd::GJGameLevel*
     bot->player1holding = false;
     bot->player2holding = false;
     bot->currentFrame = 0;
-
+    bot->practiceCheckpoints.clear();
     bot->queuedBtnP1 = None;
     bot->queuedBtnP2 = None;
 
@@ -71,6 +71,8 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
         && (size_t)bot->currentFrame < bot->levelFrames.size()) // shut up cmake 
     {
         LevelFrameData frame = bot->levelFrames[bot->currentFrame];
+
+        //std::cout << "alignment: " << bot->currentFrame << " :: " << frame.frame << "\n";
 
         frame.player1.applyToPlayer(self->m_pPlayer1);
         frame.player2.applyToPlayer(self->m_pPlayer2);
@@ -140,50 +142,60 @@ void __fastcall PauseLayer_customSetupH(gd::PauseLayer* self, uintptr_t) {
 }
 
 void(__thiscall* GJBaseGameLayer_pushButtonO)(gd::GJBaseGameLayer*, int, bool);
-void __fastcall GJBaseGameLayer_pushButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool player1) {
-    GJBaseGameLayer_pushButtonO(self, button, player1);
+void __fastcall GJBaseGameLayer_pushButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
+    GJBaseGameLayer_pushButtonO(self, button, rightSide);
 
     auto bot = GatoBot::sharedState();
 
     if(bot->status == Recording && !MBO(bool, self, 0x39C)) {
-        if(player1) bot->queuedBtnP1 = Pressed;
-        else bot->queuedBtnP2 = Pressed;
+        bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
+
+        if(MBO(bool, self, 0x2A9) && !rightSide && twoPlayer)
+            bot->queuedBtnP2 = Pressed;
+
+        else bot->queuedBtnP1 = Pressed;
     }
 }
 
 void(__thiscall* GJBaseGameLayer_releaseButtonO)(gd::GJBaseGameLayer*, int, bool);
-void __fastcall GJBaseGameLayer_releaseButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool player1) {
-    GJBaseGameLayer_releaseButtonO(self, button, player1);
+void __fastcall GJBaseGameLayer_releaseButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
+    GJBaseGameLayer_releaseButtonO(self, button, rightSide);
 
     auto bot = GatoBot::sharedState();
 
     if(bot->status == Recording && !MBO(bool, self, 0x39C)) {
-        if(player1) bot->queuedBtnP1 = Released;
-        else bot->queuedBtnP2 = Released;
+        bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
+
+        if(MBO(bool, self, 0x2A9) && !rightSide && twoPlayer)
+            bot->queuedBtnP2 = Released;
+
+        else bot->queuedBtnP1 = Released;
     }
 }
 
-gd::GameObject*(__thiscall* PlayLayer_createCheckpointO)(gd::PlayLayer*);
-gd::GameObject* __fastcall PlayLayer_createCheckpointH(gd::PlayLayer* self, uintptr_t) {
-    auto ret = PlayLayer_createCheckpointO(self);
+void(__thiscall* UILayer_onCheckO)(gd::UILayer*, CCObject*);
+void __fastcall UILayer_onCheckH(gd::UILayer* self, uintptr_t, CCObject* pSender) {
+    UILayer_onCheckO(self, pSender);
 
-    auto bot = GatoBot::sharedState();
-    if(bot->status == Recording) {
-        auto player1 = PlayerData::fromPlayer(self->m_pPlayer1); 
-        auto player2 = PlayerData::fromPlayer(self->m_pPlayer2); 
-
-        LevelFrameData frame = {bot->currentFrame, player1, player2};
-        CheckpointData checkpoint = {frame};
-
-        bot->practiceCheckpoints.push_back(checkpoint);
-    }
-
-    return ret;
+    GatoBot::sharedState()->handleCheckpoint(gd::PlayLayer::get());
 }
 
-void(__thiscall* PlayLayer_removePendingCheckpointO)(gd::PlayLayer*);
-void __fastcall PlayLayer_removePendingCheckpointH(gd::PlayLayer* self, uintptr_t) {
-    PlayLayer_removePendingCheckpointO(self);
+void midhookFuckery() {
+    GatoBot::sharedState()->handleCheckpoint(gd::PlayLayer::get());
+}
+
+// midfunc moment
+void(*PlayerObject_tryPlaceCheckpointO)();
+__declspec(naked) void PlayerObject_tryPlaceCheckpointH() {
+    __asm {
+        call midhookFuckery;
+        jmp PlayerObject_tryPlaceCheckpointO;
+    }
+}  
+
+void(__thiscall* PlayLayer_removeLastCheckpointO)(gd::PlayLayer*);
+void __fastcall PlayLayer_removeLastCheckpointH(gd::PlayLayer* self, uintptr_t) {
+    PlayLayer_removeLastCheckpointO(self);
 
     auto bot = GatoBot::sharedState();
 
@@ -191,21 +203,17 @@ void __fastcall PlayLayer_removePendingCheckpointH(gd::PlayLayer* self, uintptr_
         bot->practiceCheckpoints.pop_back();
 }
 
-float getTimeForPos(gd::PlayLayer* self) {
-    float ret;
-    float xPos = self->m_pPlayer1->getPositionX();
-    __asm movss xmm1, xPos;
-    reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x208800)(self, self->m_isTestMode); // PlayLayer::timeForXPos2
-    __asm movss ret, xmm0; // return value
-
-    return ret;
-}
-
 void(__thiscall* PlayLayer_resetLevelO)(gd::PlayLayer*);
 void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
-    PlayLayer_resetLevelO(self);
-
     auto bot = GatoBot::sharedState();
+
+    // disable practice mode
+    if(bot->status == Replaying || bot->status == Rendering && self->m_isPracticeMode) {
+        self->togglePracticeMode(false);
+        bot->practiceCheckpoints.clear();
+    }
+
+    PlayLayer_resetLevelO(self);
 
     if(bot->status == Recording) {
         if(bot->levelFrames.size() > 0) {
@@ -221,39 +229,52 @@ void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
                 checkpoint.frame.player2.applyToPlayer(self->m_pPlayer2);
             }
             else bot->currentFrame = 0;
-
+            
             // remove all clicks and frames after checkpoint
             if(self->m_isPracticeMode && bot->currentFrame > 0) {
                 bot->levelFrames.resize(bot->currentFrame);
-            }  
+            }
             else {
                 bot->levelFrames.clear();
             }
-
+            
             // jump?
             if(bot->levelFrames.back().player1.isHolding != MBO(bool, self->m_pPlayer1, 0x611)) {
-                if(MBO(bool, self->m_pPlayer1, 0x611)) bot->levelFrames.back().player1.action = Pressed;
-                else bot->levelFrames.back().player1.action = Released;
+                if(MBO(bool, self->m_pPlayer1, 0x611)) {
+                    bot->levelFrames.back().player1.action = Pressed;
+                    bot->levelFrames.back().player1.isHolding = true;
+                }
+                else {
+                    bot->levelFrames.back().player1.action = Released;
+                    bot->levelFrames.back().player1.isHolding = false;
+                }
             }
 
             if(bot->levelFrames.back().player2.isHolding != MBO(bool, self->m_pPlayer2, 0x611)) {
-                if(MBO(bool, self->m_pPlayer2, 0x611)) bot->levelFrames.back().player2.action = Pressed;
-                else bot->levelFrames.back().player2.action = Released;
+                if(MBO(bool, self->m_pPlayer2, 0x611)) {
+                    bot->levelFrames.back().player2.action = Pressed;
+                    bot->levelFrames.back().player2.isHolding = true;
+                }
+                else {
+                    bot->levelFrames.back().player2.action = Released;
+                    bot->levelFrames.back().player2.isHolding = false;
+                }
             }
 
             bot->queuedBtnP1 = None;
             bot->queuedBtnP2 = None;
         }
-
-        bot->setSongPitch(CCDirector::sharedDirector()->getScheduler()->getTimeScale());
     }
+
+    if(bot->status == Recording || bot->status == Replaying)
+        bot->setSongPitch(CCDirector::sharedDirector()->getScheduler()->getTimeScale());
 
     if(!self->m_isPracticeMode) {
         bot->currentFrame = 0;
         bot->timeFromStart = 0;
 
         // update music offset
-        bot->currentMusicOffset = getTimeForPos(self) + MBO(float, self->m_pLevelSettings, 0xFC); // timeForXPos + songOffset 
+        bot->currentMusicOffset = bot->getTimeForXPos(self) + MBO(float, self->m_pLevelSettings, 0xFC); // timeForXPos + songOffset 
     }
 }
 
@@ -304,7 +325,6 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
     }
 
     if(bot->status == Rendering && !bot->gamePaused) {
-
         if(!bot->currentFrameHasData) {
             float deltaTime = 1.f / static_cast<float>(bot->settings.targetGameFPS); // constant delta time
 
@@ -314,7 +334,7 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
                 if(fmod->isBackgroundMusicPlaying() && !pLayer->m_hasCompletedLevel) {
                     // what the fuck why are the args backwards
                     auto channel = fmod->m_pGlobalChannel;
-                    int musicTime = static_cast<int>((getTimeForPos(pLayer) + MBO(float, pLayer->m_pLevelSettings, 0xFC)) * 1000);
+                    int musicTime = static_cast<int>((bot->getTimeForXPos(pLayer) + MBO(float, pLayer->m_pLevelSettings, 0xFC)) * 1000);
                     __asm {
                         push 0x1;
                         push musicTime;
@@ -399,18 +419,25 @@ void loadHooks() {
         reinterpret_cast<void**>(&GJBaseGameLayer_releaseButtonO)
     );
 
-    // PlayLayer::createCheckpoint
+    // UILayer::onCheck
     MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20b050),
-        reinterpret_cast<void*>(&PlayLayer_createCheckpointH),
-        reinterpret_cast<void**>(&PlayLayer_createCheckpointO)
+        reinterpret_cast<void*>(gd::base + 0x25fb60),
+        reinterpret_cast<void*>(&UILayer_onCheckH),
+        reinterpret_cast<void**>(&UILayer_onCheckO)
     );
 
-    // PlayLayer::removePendingCheckpoint
+    // PlayLayer::tryPlaceCheckpoint (MIDHOOK)
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20b487),
+        reinterpret_cast<void*>(&PlayerObject_tryPlaceCheckpointH),
+        reinterpret_cast<void**>(&PlayerObject_tryPlaceCheckpointO)
+    );
+
+    // PlayLayer::removeLastCheckpoint
     MH_CreateHook(
         reinterpret_cast<void*>(gd::base + 0x20b830),
-        reinterpret_cast<void*>(&PlayLayer_removePendingCheckpointH),
-        reinterpret_cast<void**>(&PlayLayer_removePendingCheckpointO)
+        reinterpret_cast<void*>(&PlayLayer_removeLastCheckpointH),
+        reinterpret_cast<void**>(&PlayLayer_removeLastCheckpointO)
     );
 
     // PlayLayer::resetLevel

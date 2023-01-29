@@ -49,6 +49,20 @@ void GatoBot::handleFrame(gd::PlayLayer* pLayer) {
     levelFrames.push_back(frame);
 }
 
+void GatoBot::handleCheckpoint(gd::PlayLayer* pLayer) {
+    if(status == Recording && !MBO(bool, pLayer, 0x39C)) {
+        auto player1 = PlayerData::fromPlayer(pLayer->m_pPlayer1); 
+        auto player2 = PlayerData::fromPlayer(pLayer->m_pPlayer2); 
+
+        auto obj = (gd::CheckpointObject*)pLayer->m_checkpoints->lastObject();
+
+        LevelFrameData frame = {currentFrame, player1, player2};
+        CheckpointData checkpoint = {obj, frame};
+
+        practiceCheckpoints.push_back(checkpoint);
+    }
+}
+
 void GatoBot::saveCurrentReplay() {
     nfdchar_t filterList[] = {"gatobot"};
 

@@ -171,7 +171,7 @@ void GatoBotMenu::FLAlert_Clicked(gd::FLAlertLayer* alert, bool btn2) {
     }
     if(alert->getTag() == 4 && !btn2) {
         // download ffmpeg
-        CCApplication::sharedApplication()->openURL("https://www.gyan.dev/ffmpeg/builds/");
+        CCApplication::sharedApplication()->openURL("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip");
     }
 }
 

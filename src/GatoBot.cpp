@@ -53,14 +53,16 @@ void GatoBot::toggleGameFPSCap(bool toggled) {
     if(!toggled) bytes = {0xEB, 0x24};
 
     patchMemory(patchLoc, bytes);
+}
 
-    /*auto dir = CCDirector::sharedDirector();
+float GatoBot::getTimeForXPos(gd::PlayLayer* pLayer) {
+    float ret;
+    float xPos = pLayer->m_pPlayer1->getPositionX();
+    __asm movss xmm1, xPos;
+    reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x208800)(pLayer, pLayer->m_isTestMode); // PlayLayer::timeForXPos2
+    __asm movss ret, xmm0; // return value
 
-    if(!toggled) {
-        lastSPF = dir->getAnimationInterval();
-        dir->setAnimationInterval(0);
-    }
-    else dir->setAnimationInterval(lastSPF);*/
+    return ret;
 }
 
 // https://github.com/matcool/small-gd-mods/blob/main/src/menu-shaders.cpp#L19

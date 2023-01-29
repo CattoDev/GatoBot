@@ -1,5 +1,5 @@
 # GatoBot
-**GatoBot is a frame-based Geometry Dash bot with an internal renderer.**
+**GatoBot is a physics-based Geometry Dash bot with an internal renderer.**
 
 This bot is **heavily** inspired by [ReplayBot](https://github.com/matcool/ReplayBot), with a goal to make a more accurate version.
 

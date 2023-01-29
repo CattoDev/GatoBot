@@ -79,6 +79,7 @@ struct LevelFrameData {
 };
 
 struct CheckpointData {
+    gd::CheckpointObject* object;
     LevelFrameData frame;
 };
 
@@ -154,8 +155,10 @@ public:
     static GatoBot* sharedState();
 
     bool FFmpegInstalled();
+    float getTimeForXPos(gd::PlayLayer*);
 
     void handleFrame(gd::PlayLayer*);
+    void handleCheckpoint(gd::PlayLayer*);
 
     void saveReplay(std::string& filepath);
     void loadReplay(std::string data);
