@@ -159,6 +159,7 @@ public:
 
     void handleFrame(gd::PlayLayer*);
     void handleCheckpoint(gd::PlayLayer*);
+    void handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
 
     void saveReplay(std::string& filepath);
     void loadReplay(std::string data);

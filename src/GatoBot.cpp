@@ -32,11 +32,17 @@ GatoBot* GatoBot::sharedState() {
 }
 
 bool GatoBot::FFmpegInstalled() {
-    auto utils = CCFileUtils::sharedFileUtils();
+    /*auto utils = CCFileUtils::sharedFileUtils();
 
     // what is bro cooking :skull:
     auto path = utils->fullPathForFilename("ffmpeg.exe", false);
-    return strcmp(path.c_str(), "ffmpeg.exe");
+    return strcmp(path.c_str(), "ffmpeg.exe");*/
+
+    WCHAR buffer[MAX_PATH];
+    GetModuleFileNameW(GetModuleHandleA(nullptr), buffer, MAX_PATH);
+    const auto path = std::filesystem::path(buffer).parent_path() / "ffmpeg.exe";
+
+    return std::filesystem::exists(path);
 }
 
 int GatoBot::getCurrentFPS() {

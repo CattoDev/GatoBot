@@ -145,32 +145,14 @@ void(__thiscall* GJBaseGameLayer_pushButtonO)(gd::GJBaseGameLayer*, int, bool);
 void __fastcall GJBaseGameLayer_pushButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
     GJBaseGameLayer_pushButtonO(self, button, rightSide);
 
-    auto bot = GatoBot::sharedState();
-
-    if(bot->status == Recording && !MBO(bool, self, 0x39C)) {
-        bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
-
-        if(MBO(bool, self, 0x2A9) && !rightSide && twoPlayer)
-            bot->queuedBtnP2 = Pressed;
-
-        else bot->queuedBtnP1 = Pressed;
-    }
+    GatoBot::sharedState()->handleClick(self, rightSide, Pressed);
 }
 
 void(__thiscall* GJBaseGameLayer_releaseButtonO)(gd::GJBaseGameLayer*, int, bool);
 void __fastcall GJBaseGameLayer_releaseButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
     GJBaseGameLayer_releaseButtonO(self, button, rightSide);
 
-    auto bot = GatoBot::sharedState();
-
-    if(bot->status == Recording && !MBO(bool, self, 0x39C)) {
-        bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
-
-        if(MBO(bool, self, 0x2A9) && !rightSide && twoPlayer)
-            bot->queuedBtnP2 = Released;
-
-        else bot->queuedBtnP1 = Released;
-    }
+    GatoBot::sharedState()->handleClick(self, rightSide, Released);
 }
 
 void(__thiscall* UILayer_onCheckO)(gd::UILayer*, CCObject*);
@@ -239,6 +221,8 @@ void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
             }
             
             // jump?
+            // MBO(bool, self, 0x2A9) && !rightSide && twoPlayer
+
             if(bot->levelFrames.back().player1.isHolding != MBO(bool, self->m_pPlayer1, 0x611)) {
                 if(MBO(bool, self->m_pPlayer1, 0x611)) {
                     bot->levelFrames.back().player1.action = Pressed;
@@ -250,7 +234,7 @@ void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
                 }
             }
 
-            if(bot->levelFrames.back().player2.isHolding != MBO(bool, self->m_pPlayer2, 0x611)) {
+            if(bot->levelFrames.back().player2.isHolding != MBO(bool, self->m_pPlayer2, 0x611) && (MBO(bool, self, 0x2A9) && !MBO(bool, self->m_pPlayer2, 0x611) && MBO(bool, self->m_pLevelSettings, 0xFA))) {
                 if(MBO(bool, self->m_pPlayer2, 0x611)) {
                     bot->levelFrames.back().player2.action = Pressed;
                     bot->levelFrames.back().player2.isHolding = true;
