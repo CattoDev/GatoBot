@@ -348,7 +348,7 @@ void SettingsPopup::onApply(CCObject*) {
 
     // FPS
     if(enteredGameFPS % enteredFPS != 0) {
-        auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, 400, CCString::createWithFormat("Current FPS has to be divisble by target FPS.\n<cy>%i %% %i</c> <cr>!=</c> <cy>0</c>", enteredGameFPS, enteredFPS)->m_sString);
+        auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, 400, CCString::createWithFormat("Current FPS has to be divisible by target FPS.\n<cy>%i %% %i</c> <cr>!=</c> <cy>0</c>", enteredGameFPS, enteredFPS)->m_sString);
         alert->m_pTargetLayer = this;
         alert->show();
         
@@ -363,7 +363,9 @@ void SettingsPopup::onApply(CCObject*) {
         return;
     }
 
-    CCDirector::sharedDirector()->setAnimationInterval(1.f / (float)enteredGameFPS);
+    auto dir = CCDirector::sharedDirector();
+    bot->lastSPF = dir->getAnimationInterval();
+    dir->setAnimationInterval(1.f / (float)enteredGameFPS);
 
     bot->settings.bitrate = std::stoi(textInputs[0]->getString());
     bot->settings.audioBitrate = std::stoi(textInputs[6]->getString());

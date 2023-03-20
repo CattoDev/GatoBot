@@ -2,6 +2,9 @@
 
 #include <nfd.h>
 
+#undef snprintf
+#include <json.hpp>
+
 void GatoBot::toggleReplay(float newSPF, float speed) {
     if(status == Replaying) {
         status = Disabled;
@@ -19,6 +22,7 @@ void GatoBot::toggleReplay(float newSPF, float speed) {
             lastSPF = dir->getAnimationInterval();
 
             settings.targetSPF = newSPF;
+            settings.targetSpeed = speed;
 
             // Speedhack (Classic Mode)
             dir->setAnimationInterval(newSPF);
@@ -62,6 +66,7 @@ std::vector<std::string> _splitString(std::string stringData, char* delimiter) {
 void GatoBot::loadNewReplay() {
     // get file path
     nfdchar_t *outPath = NULL;
+    //nfdresult_t res = NFD_OpenDialog({"gatobot,mhr.json"}, nullptr, &outPath);
     nfdresult_t res = NFD_OpenDialog({"gatobot"}, nullptr, &outPath);
 
     if(res != NFD_OKAY) {
@@ -69,15 +74,24 @@ void GatoBot::loadNewReplay() {
         return;
     } 
 
-    // get data from file
-    auto utils = CCFileUtils::sharedFileUtils();
-    unsigned long dataSize;
-    auto data = utils->getFileData(outPath, "r", &dataSize);
+    // use ifstream instead
+    std::string data;
+    std::ifstream file(outPath);
+    std::string line;
+
+    while(getline(file, line)) {
+        data.append(line);
+    }
+
+    ReplayType rType = ReplayType::GatoBotR;
+
+    // MH replay
+    //if(strstr(outPath, "mhr.json") != NULL) rType = ReplayType::MegaHack;
 
     free(outPath);
 
-    if(dataSize > 0) {
-        loadReplay(std::string((char*)data));
+    if(data.length() > 0) {
+        loadReplay(data, rType);
         auto alert = gd::FLAlertLayer::create(nullptr, "Success", "OK", nullptr, "Replay loaded!");
         alert->m_pTargetLayer = (CCNode*)botMenu;
         alert->show();
@@ -90,32 +104,99 @@ void GatoBot::loadNewReplay() {
     }
 }
 
-void GatoBot::loadReplay(std::string replayDataCompressed) {
+void GatoBot::loadReplay(std::string replayDataCompressed, ReplayType rType = ReplayType::GatoBotR) {
     // remove currently loaded frames
     levelFrames.clear();
 
     // decompress string
-    auto replayData = std::string(ZipUtils_decompressString(replayDataCompressed, false, 11).sv());
+    std::string replayData;
+    if(rType == ReplayType::GatoBotR)
+        replayData = std::string(ZipUtils_decompressString(replayDataCompressed, false, 11).sv());
+
+    else replayData = replayDataCompressed;
 
     // parse replay data
-    size_t index = 0;
-    size_t nextIndex = replayData.find(";");
-    std::string subStr;
+    if(rType == ReplayType::GatoBotR) {
+        size_t index = 0;
+        size_t nextIndex = replayData.find(";");
+        std::string subStr;
 
-    while(true) {
-        if(nextIndex >= replayData.length()) break;
+        while(true) {
+            if(nextIndex >= replayData.length()) break;
 
-        subStr = replayData.substr(index, nextIndex - index);
+            subStr = replayData.substr(index, nextIndex - index);
 
-        // add frame
-        auto frame = frameFromString(subStr);
-        levelFrames.push_back(frame);
+            // add frame
+            auto frame = frameFromString(subStr);
+            levelFrames.push_back(frame);
 
-        if(nextIndex == replayData.npos) break;
+            if(nextIndex == replayData.npos) break;
 
-        // continue
-        index = nextIndex + 1;
-        nextIndex = replayData.find(";", index);
+            // continue
+            index = nextIndex + 1;
+            nextIndex = replayData.find(";", index);
+        }
+    }
+    // parse MegaHack replay
+    if(rType == ReplayType::MegaHack) {
+        using namespace nlohmann;
+
+        json data = json::parse(replayData);
+
+        auto events = data["events"];
+
+        bool isHolding = false;
+        int curF = 0;
+
+        for (json::iterator it = events.begin(); it != events.end(); it++) {
+            // - parse event
+            const auto item = it.value();
+
+            item["frame"].get_to(curF);
+                
+            // player data
+            PlayerData pData;
+
+            item["x"].get_to(pData.position.x);
+            item["y"].get_to(pData.position.y);
+            item["a"].get_to(pData.yVel);
+
+            // click
+            if(item.contains("down")) {
+                item["down"].get_to(isHolding);
+
+                pData.action = isHolding ? ButtonType::Pressed : ButtonType::Released;
+
+                pData.isHolding = isHolding;
+            }
+            else {
+                pData.action = ButtonType::None;
+            }
+
+            // new frame
+            if(curF + 1 > levelFrames.size()) {
+                LevelFrameData frame;
+                frame.frame = curF;
+
+                if(item.contains("p2"))
+                    frame.player2 = pData;
+
+                else frame.player1 = pData;
+
+                levelFrames.push_back(frame);
+            }
+            else {
+                LevelFrameData frame = levelFrames[curF];
+
+                if(item.contains("p2")) {
+                    frame.player2 = pData;
+                }
+
+                else frame.player1 = pData;
+
+                levelFrames[curF] = frame;
+            }
+        }
     }
 
     // sort clicks if some shit went wrong and they got shuffled

@@ -85,8 +85,14 @@ bool RecordPopup::init(bool isReplayScreen) {
     speedLabelBG->setPosition(winSize / 2 + CCPoint(60, -10));
     m_pLayer->addChild(speedLabelBG, 1);
 
+    std::stringstream speedNum;
+    speedNum << dir->getScheduler()->getTimeScale();
+
+    auto speedStr = speedNum.str();
+    if(speedStr.find(".") == speedStr.npos) speedStr.append(".0");
+
     speedInput = gd::CCTextInputNode::create("Speedhack", this, "bigFont.fnt", 100, 40);
-    speedInput->setString(std::to_string(dir->getScheduler()->getTimeScale()).c_str());
+    speedInput->setString(speedStr.c_str());
     speedInput->setPosition(CCPoint(60, -10));
     speedInput->setMaxLabelLength(10);
     speedInput->setAllowedChars(".0123456789");

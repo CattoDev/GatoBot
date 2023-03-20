@@ -69,6 +69,15 @@ bool GatoBotMenu::init() {
 
     m_pButtonMenu->alignItemsHorizontallyWithPadding(10);
 
+    // button bg cuz fancy
+    auto btnMenuBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
+    btnMenuBG->setOpacity(100);
+    btnMenuBG->setContentSize(CCSize(400, 80));
+    btnMenuBG->setScale(.65);
+    btnMenuBG->setPosition(m_pButtonMenu->getPosition());
+
+    addChild(btnMenuBG);
+
     // set tags
     for(int i = 0; i < m_pButtonMenu->getChildrenCount(); i++) {
         reinterpret_cast<gd::CCMenuItemSpriteExtra*>(m_pButtonMenu->getChildren()->objectAtIndex(i))->setTag(i + 1);

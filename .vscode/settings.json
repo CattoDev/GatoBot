@@ -88,6 +88,9 @@
         "shared_mutex": "cpp",
         "typeindex": "cpp",
         "unordered_set": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "any": "cpp",
+        "cwctype": "cpp",
+        "span": "cpp"
     }
 }

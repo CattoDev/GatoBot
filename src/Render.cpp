@@ -271,7 +271,7 @@ void renderingThread(GatoBot* bot) {
         }
     }
 
-    LoadingCircle::remove();
+    GBLoadingCircle::remove();
 
     logRender("Rendering video finished" << "\n");
 
@@ -360,6 +360,8 @@ void GatoBot::toggleRender() {
         renderingTexture->release();
         toggleGameFPSCap(true);
         patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0xE8, 0x3B, 0xAD, 0x00, 0x00});
+
+        CCDirector::sharedDirector()->setAnimationInterval(lastSPF);
 
         reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x20d3c0)(gd::PlayLayer::get(), false);
     }

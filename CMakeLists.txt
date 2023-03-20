@@ -3,6 +3,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(GatoBot)
 
+set(BUILD_BOOTSTRAPPER ON) # geode
+
+set(MAINPATH "C:/Programming/gdmods/GatoBot")
+
 # src files
 file(GLOB_RECURSE SOURCE_FILES 
     src/*.cpp 
@@ -36,4 +40,4 @@ add_subdirectory(libraries/cocos-headers)
 
 find_library(OPENGL32_LIBRARY_PATH opengl32)
 
-target_link_libraries(${PROJECT_NAME} minhook cocos2d opengl32 ${CMAKE_SOURCE_DIR}/libraries/glew32.lib)
+target_link_libraries(${PROJECT_NAME} minhook cocos2d opengl32 ${MAINPATH}/libraries/glew32.lib)

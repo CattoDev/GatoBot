@@ -3,57 +3,15 @@
 
 #include "includes.hpp"
 
+// exports
+#define GB_DLL __declspec(dllexport)
+
 // funny macro
 #define MBO(type, class, offset) *reinterpret_cast<type*>(reinterpret_cast<uintptr_t>(class) + offset)
 
-/*
-    GD's version of std::string
-*/
-struct GDH_DLL gdstring {
-    union
-    {
-        char inline_data[16];
-        char *ptr;
-    } m_data;
-    size_t m_size = 0;
-    size_t m_capacity = 15;
-
-    gdstring(const char *data, size_t size)
-    {
-        reinterpret_cast<void *(__thiscall *)(void *, const char *, size_t)>(gd::base + 0xf840)(this, data, size);
-    }
-
-    explicit gdstring(const std::string_view &str) : gdstring(str.data(), str.size()) {}
-    gdstring(const char *str) : gdstring(std::string_view(str)) {}
-    gdstring(const std::string &str) : gdstring(str.c_str(), str.size()) {}
-
-    size_t size() const { return m_size; }
-
-    gdstring &operator=(const std::string &other)
-    {
-        if (m_capacity > 15)
-            delete m_data.ptr;
-        reinterpret_cast<void *(__thiscall *)(void *, const char *, size_t)>(gd::base + 0xf840)(this, other.c_str(), other.size());
-        return *this;
-    }
-
-    const char *c_str() const
-    {
-        if (m_capacity <= 15)
-            return m_data.inline_data;
-        return m_data.ptr;
-    }
-
-    std::string_view sv() const
-    {
-        return std::string_view(c_str(), m_size);
-    }
-
-    operator std::string() const { return std::string(sv()); }
-};
-
 enum ButtonType { None, Pressed, Released };
 enum BotStatus { Disabled, Recording, Replaying, Rendering };
+enum ReplayType { GatoBotR, MegaHack };
 
 struct PlayerData {
     cocos2d::CCPoint position;
@@ -95,6 +53,7 @@ struct GatoBotSettings {
     int targetFPS;
     int targetGameFPS;
     float targetSPF;
+    float targetSpeed;
     int divideFramesBy = 1;
 
     std::string extraArguments;
@@ -107,7 +66,7 @@ struct GatoBotSettings {
     bool loadedHooks = false;
 };
 
-class LoadingCircle;
+class GBLoadingCircle;
 class GatoBotMenu;
 
 class GatoBot {
@@ -119,7 +78,7 @@ public:
     double lastSPF;
 
     int lastInfoCode;
-    LoadingCircle* loadingCircle;
+    GBLoadingCircle* loadingCircle;
 
     ButtonType queuedBtnP1;
     ButtonType queuedBtnP2;
@@ -139,6 +98,8 @@ public:
     bool player1holding;
     bool player2holding;
     bool gamePaused;
+    bool presetSettings;
+    bool usingGeode;
 
     CCLabelBMFont* statusLabel;
     gd::PauseLayer* currentPauseLayer;
@@ -151,8 +112,14 @@ public:
     std::vector<CheckpointData> practiceCheckpoints;
     std::vector<LevelFrameData> levelFrames;
 
+    // update hook
+    LPVOID updateHookAddr;
+
 public:
     static GatoBot* sharedState();
+    GB_DLL static void setupBot();
+    GB_DLL static void setupGeode(); // geode only
+    void preset();
 
     bool FFmpegInstalled();
     float getTimeForXPos(gd::PlayLayer*);
@@ -162,7 +129,7 @@ public:
     void handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
 
     void saveReplay(std::string& filepath);
-    void loadReplay(std::string data);
+    void loadReplay(std::string data, ReplayType);
     void updateRender();
     void updateStatusLabel();
     LevelFrameData frameFromString(std::string data);

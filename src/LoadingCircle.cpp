@@ -1,6 +1,6 @@
 #include "LoadingCircle.hpp"
 
-bool LoadingCircle::init() {
+bool GBLoadingCircle::init() {
     if(!initWithColor(ccc4(0, 0, 0, 105))) return false;
 
     circle = gd::LoadingCircle::create();
@@ -17,7 +17,7 @@ bool LoadingCircle::init() {
     return true;
 }
 
-void LoadingCircle::remove() {
+void GBLoadingCircle::remove() {
     auto self = GatoBot::sharedState()->loadingCircle;
 
     if(self != nullptr) {

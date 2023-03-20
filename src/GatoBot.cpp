@@ -18,26 +18,34 @@ GatoBot* GatoBot::sharedState() {
         instance->lastInfoCode = 0;
         instance->lastSPF = CCDirector::sharedDirector()->getAnimationInterval();
         instance->currentFrameHasData = false;
+        instance->presetSettings = false;
+        instance->usingGeode = false;
+
+        instance->settings.targetFPS = instance->getCurrentFPS();
 
         instance->levelFrames.reserve(99999);
-
-        auto frameSize = CCEGLView::sharedOpenGLView()->getFrameSize();
-        instance->settings.targetWidth = static_cast<int>(frameSize.width);
-        instance->settings.targetHeight = static_cast<int>(frameSize.height);
-        instance->settings.targetFPS = instance->getCurrentFPS();
-        instance->settings.targetGameFPS = instance->settings.targetFPS;
     }
+
+    // just in case
+    instance->preset();
 
     return instance;
 }
 
+void GatoBot::preset() {
+    if(!presetSettings) {
+        if(CCEGLView::sharedOpenGLView() != nullptr) { 
+            auto frameSize = CCEGLView::sharedOpenGLView()->getFrameSize();
+            instance->settings.targetWidth = static_cast<int>(frameSize.width);
+            instance->settings.targetHeight = static_cast<int>(frameSize.height);
+            instance->settings.targetGameFPS = instance->settings.targetFPS;
+
+            presetSettings = true;
+        }
+    } 
+}
+
 bool GatoBot::FFmpegInstalled() {
-    /*auto utils = CCFileUtils::sharedFileUtils();
-
-    // what is bro cooking :skull:
-    auto path = utils->fullPathForFilename("ffmpeg.exe", false);
-    return strcmp(path.c_str(), "ffmpeg.exe");*/
-
     WCHAR buffer[MAX_PATH];
     GetModuleFileNameW(GetModuleHandleA(nullptr), buffer, MAX_PATH);
     const auto path = std::filesystem::path(buffer).parent_path() / "ffmpeg.exe";
@@ -120,4 +128,115 @@ void GatoBot::resetBasicVariables() {
     if(status == Rendering) toggleRender();
     if(status == Recording) toggleRecord();
     if(status == Replaying) toggleReplay();
+}
+
+void GatoBot::setupBot() {
+    auto self = GatoBot::sharedState();
+
+    HMODULE cocosBase = GetModuleHandleA("libcocos2d.dll");
+    HMODULE fmodBase = GetModuleHandleA("fmod.dll");
+
+    self->cocosBaseAddr = cocosBase;
+
+    // update hook addr
+    self->updateHookAddr = GetProcAddress(cocosBase, "?update@CCScheduler@cocos2d@@UAEXM@Z");
+
+    // declare inline funcs
+    GatoBot::ZipUtils_compressString = reinterpret_cast<decltype(GatoBot::ZipUtils_compressString)>(
+        GetProcAddress(cocosBase, "?compressString@ZipUtils@cocos2d@@SA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V34@_NH@Z")
+    );
+
+    GatoBot::ZipUtils_decompressString = reinterpret_cast<decltype(GatoBot::ZipUtils_decompressString)>(
+        GetProcAddress(cocosBase, "?decompressString@ZipUtils@cocos2d@@SA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V34@_NH@Z")
+    );
+
+    GatoBot::FMOD_Channel_setPosition = reinterpret_cast<decltype(GatoBot::FMOD_Channel_setPosition)>(
+        GetProcAddress(fmodBase, "FMOD_Channel_SetPosition")
+    );
+
+    GatoBot::FMOD_Channel_setPitch = reinterpret_cast<decltype(GatoBot::FMOD_Channel_setPitch)>(
+        GetProcAddress(fmodBase, "?setPitch@ChannelControl@FMOD@@QAG?AW4FMOD_RESULT@@M@Z")
+    );
+
+    GatoBot::PauseLayer_onRetry = reinterpret_cast<decltype(GatoBot::PauseLayer_onRetry)>(gd::base + 0x1E6040);
+
+    // PlayLayer::update
+    /*MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x2029c0),
+        reinterpret_cast<void*>(&PlayLayer_updateH),
+        reinterpret_cast<void**>(&PlayLayer_updateO)
+    );
+
+    // GJBaseGameLayer::pushButton
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x111500),
+        reinterpret_cast<void*>(&GJBaseGameLayer_pushButtonH),
+        reinterpret_cast<void**>(&GJBaseGameLayer_pushButtonO)
+    );
+
+    // GJBaseGameLayer::releaseButton
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x111660),
+        reinterpret_cast<void*>(&GJBaseGameLayer_releaseButtonH),
+        reinterpret_cast<void**>(&GJBaseGameLayer_releaseButtonO)
+    );
+
+    // UILayer::onCheck
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x25fb60),
+        reinterpret_cast<void*>(&UILayer_onCheckH),
+        reinterpret_cast<void**>(&UILayer_onCheckO)
+    );
+
+    // PlayLayer::tryPlaceCheckpoint (MIDHOOK)
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20b487),
+        reinterpret_cast<void*>(&PlayerObject_tryPlaceCheckpointH),
+        reinterpret_cast<void**>(&PlayerObject_tryPlaceCheckpointO)
+    );
+
+    // PlayLayer::removeLastCheckpoint
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20b830),
+        reinterpret_cast<void*>(&PlayLayer_removeLastCheckpointH),
+        reinterpret_cast<void**>(&PlayLayer_removeLastCheckpointO)
+    );
+
+    // PlayLayer::resetLevel
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20bf00),
+        reinterpret_cast<void*>(&PlayLayer_resetLevelH),
+        reinterpret_cast<void**>(&PlayLayer_resetLevelO)
+    );
+
+    // PlayLayer::onComplete
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x1fd3d0),
+        reinterpret_cast<void*>(&PlayLayer_levelCompleteH),
+        reinterpret_cast<void**>(&PlayLayer_levelCompleteO)
+    );
+
+    // PlayLayer::onQuit
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20d810),
+        reinterpret_cast<void*>(&PlayLayer_onQuitH),
+        reinterpret_cast<void**>(&PlayLayer_onQuitO)
+    );
+
+    // PlayLayer::destroyPlayer
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x20a1a0),
+        reinterpret_cast<void*>(&PlayLayer_destroyPlayerH),
+        reinterpret_cast<void**>(&PlayLayer_destroyPlayerO)
+    );
+
+    MH_EnableHook(MH_ALL_HOOKS);
+
+    // - disabled by default
+    // CCScheduler::update
+    MH_CreateHook(
+        bot->updateHookAddr,
+        reinterpret_cast<void*>(&CCScheduler_updateH),
+        reinterpret_cast<void**>(&CCScheduler_updateO)
+    );*/
 }

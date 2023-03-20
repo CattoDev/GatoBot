@@ -23,6 +23,7 @@ void GatoBot::toggleRecord(float newSPF, float speed) {
             lastSPF = dir->getAnimationInterval();
 
             settings.targetSPF = newSPF;
+            settings.targetSpeed = speed;
 
             // Speedhack (Classic Mode)
             dir->setAnimationInterval(newSPF);
