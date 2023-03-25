@@ -56,10 +56,9 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
             dir->setAnimationInterval(bot->settings.targetSPF);
         }
 
-        float spf = (float)dir->getAnimationInterval();
+        // lock delta
+        dt = bot->settings.targetSPF * tScale;
 
-        dt = spf * tScale; // ensure smooth recording (although it will look like smooth fix when replaying, but who cares, not like anyone is gonna record the replay)
-    
         // update checkpoints
         if(bot->status == Recording) {
             if(self->m_checkpoints->count() > bot->practiceCheckpoints.size()) {
@@ -86,16 +85,19 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
 
         LevelFrameData frame = bot->levelFrames[bot->currentFrame];
 
+        // next frame
+        LevelFrameData nextFrame = bot->levelFrames[bot->currentFrame + 1];
+
         // jump
         // player 1
-        if(frame.player1.action != None) {
-            if(frame.player1.action == Pressed) self->pushButton(1, true);
+        if(nextFrame.player1.action != None) {
+            if(nextFrame.player1.action == Pressed) self->pushButton(1, true);
             else self->releaseButton(1, true);
         }
 
         // player 2
-        if(frame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
-            if(frame.player2.action == Pressed) self->pushButton(1, false);
+        if(nextFrame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
+            if(nextFrame.player2.action == Pressed) self->pushButton(1, false);
             else self->releaseButton(1, false);
         }
 
@@ -108,16 +110,18 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
     else {
         // update recording
         if(bot->status == Recording && self->m_pPlayer1->getPositionX() > 0
-            && !MBO(bool, self, 0x39C)
-            && MBO(bool, self, 0x2EC))
+            && !MBO(bool, self, 0x39C) // isDead?
+            && MBO(bool, self, 0x2EC)
+        )
         { 
             bot->handleFrame(self);
-            
+        
             // increment
             bot->currentFrame++;
         }
-        else if(self->m_pPlayer1->getPositionX() == 0) {
-            bot->currentFrame = 0;
+        else 
+            if(self->m_pPlayer1->getPositionX() == 0) {
+                bot->currentFrame = 0;
         }
     }
 }
@@ -520,27 +524,6 @@ DWORD WINAPI ModThread(void* hModule) {
 
         MH_EnableHook(MH_ALL_HOOKS);
     }
-
-    /*GatoBot::setupBot();
-
-    // MinHook
-    MH_Initialize();
-
-    // PlayLayer::init
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1fb780),
-        reinterpret_cast<void*>(&PlayLayer_initH),
-        reinterpret_cast<void**>(&PlayLayer_initO)
-    );
-
-    // PauseLayer::customSetup
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1e4620),
-        reinterpret_cast<void*>(&PauseLayer_customSetupH),
-        reinterpret_cast<void**>(&PauseLayer_customSetupO)
-    );
-
-    MH_EnableHook(MH_ALL_HOOKS);*/
 
     return 0;
 }

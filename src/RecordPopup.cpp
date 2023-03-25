@@ -130,8 +130,10 @@ void RecordPopup::onStart(CCObject*) {
     int fpsVal = std::stoi(fpsInput->getString());
     float speedVal = std::stof(speedInput->getString());
 
-    if(isReplay) bot->toggleReplay(1.f / (fpsVal * speedVal), speedVal);
-    else bot->toggleRecord(1.f / (fpsVal * speedVal), speedVal);
+    //if(isReplay) bot->toggleReplay(1.f / (fpsVal * speedVal), speedVal);
+    //else bot->toggleRecord(1.f / (fpsVal * speedVal), speedVal);
+    if(isReplay) bot->toggleReplay(fpsVal, speedVal);
+    else bot->toggleRecord(fpsVal, speedVal);
 
     onCancel(nullptr);
     parentMenu->keyBackClicked();

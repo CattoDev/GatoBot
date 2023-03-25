@@ -4,7 +4,7 @@
 #include <sstream>
 #include <nfd.h>
 
-void GatoBot::toggleRecord(float newSPF, float speed) {
+/*void GatoBot::toggleRecord(float newSPF, float speed) {
     if(status == Recording) {
         status = Disabled;
 
@@ -26,6 +26,39 @@ void GatoBot::toggleRecord(float newSPF, float speed) {
             settings.targetSpeed = speed;
 
             // Speedhack (Classic Mode)
+            dir->setAnimationInterval(newSPF);
+            dir->getScheduler()->setTimeScale(speed);
+        }
+
+        status = Recording;
+    }
+
+    updateStatusLabel();
+}*/
+
+void GatoBot::toggleRecord(int FPS, float speed) {
+    if(status == Recording) {
+        status = Disabled;
+
+        // reset fps
+        auto dir = CCDirector::sharedDirector();
+        dir->setAnimationInterval(lastSPF);
+        dir->getScheduler()->setTimeScale(1);
+        setSongPitch(1);
+    }
+    else {
+        levelFrames.clear();
+
+        if(FPS > 0 && speed > 0) {
+            auto dir = CCDirector::sharedDirector();
+
+            float newSPF = 1.f / (FPS * speed);
+            lastSPF = dir->getAnimationInterval();
+
+            settings.targetSPF = newSPF;
+            settings.targetSpeed = speed;
+            settings.targetFPS = FPS;
+
             dir->setAnimationInterval(newSPF);
             dir->getScheduler()->setTimeScale(speed);
         }

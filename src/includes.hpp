@@ -9,6 +9,9 @@ using namespace cocos2d;
 
 #include <subprocess.hpp>
 
+#undef snprintf
+#include <json.hpp>
+
 // std
 #include <iostream>
 #include <vector>

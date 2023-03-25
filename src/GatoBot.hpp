@@ -12,12 +12,15 @@
 enum ButtonType { None, Pressed, Released };
 enum BotStatus { Disabled, Recording, Replaying, Rendering };
 enum ReplayType { GatoBotR, MegaHack };
+enum ReplayLoadStatus { Success, MissingFrames, Failed };
 
 struct PlayerData {
     cocos2d::CCPoint position;
     double yVel;
     bool isHolding;
     ButtonType action = None;
+
+    PlayerData() {} // ?
 
     static PlayerData fromPlayer(gd::PlayerObject* player) {
         PlayerData data;
@@ -28,6 +31,7 @@ struct PlayerData {
         return data;
     }
     void applyToPlayer(gd::PlayerObject* player);
+    static PlayerData fromJson(nlohmann::json);
 };
 
 struct LevelFrameData {
@@ -129,7 +133,7 @@ public:
     void handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
 
     void saveReplay(std::string& filepath);
-    void loadReplay(std::string data, ReplayType);
+    ReplayLoadStatus loadReplay(std::string data, ReplayType);
     void updateRender();
     void updateStatusLabel();
     LevelFrameData frameFromString(std::string data);
@@ -141,8 +145,8 @@ public:
     void retryLevel();
     void setSongPitch(float);
 
-    void toggleRecord(float a = 0, float b = 0);
-    void toggleReplay(float a = 0, float b = 0);
+    void toggleRecord(int a = 0, float b = 0);
+    void toggleReplay(int a = 0, float b = 0);
     void toggleRender();
 
     void toggleGameFPSCap(bool);

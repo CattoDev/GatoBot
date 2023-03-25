@@ -2,10 +2,19 @@
 
 #include <nfd.h>
 
-#undef snprintf
-#include <json.hpp>
+using namespace nlohmann; // json
 
-void GatoBot::toggleReplay(float newSPF, float speed) {
+// for sorting
+bool compareFramesForPrac(const LevelFrameData& a, const LevelFrameData& b) {
+    return a.frame < b.frame;
+}
+
+bool compareMHevents(const json& a, const json& b) {
+    return a["frame"] < b["frame"];
+}
+
+// toggle
+void GatoBot::toggleReplay(int FPS, float speed) {
     if(status == Replaying) {
         status = Disabled;
 
@@ -16,15 +25,16 @@ void GatoBot::toggleReplay(float newSPF, float speed) {
         setSongPitch(1);
     }
     else {
-        if(newSPF > 0 && speed > 0) {
+        if(FPS > 0 && speed > 0) {
             auto dir = CCDirector::sharedDirector();
 
+            float newSPF = 1.f / (FPS * speed);
             lastSPF = dir->getAnimationInterval();
 
             settings.targetSPF = newSPF;
             settings.targetSpeed = speed;
+            settings.targetFPS = FPS;
 
-            // Speedhack (Classic Mode)
             dir->setAnimationInterval(newSPF);
             dir->getScheduler()->setTimeScale(speed);
         }
@@ -33,11 +43,6 @@ void GatoBot::toggleReplay(float newSPF, float speed) {
     }
 
     updateStatusLabel();
-}
-
-// for sorting
-bool compareFramesForPrac(const LevelFrameData& a, const LevelFrameData& b) {
-    return a.frame < b.frame;
 }
 
 // split
@@ -66,8 +71,7 @@ std::vector<std::string> _splitString(std::string stringData, char* delimiter) {
 void GatoBot::loadNewReplay() {
     // get file path
     nfdchar_t *outPath = NULL;
-    //nfdresult_t res = NFD_OpenDialog({"gatobot,mhr.json"}, nullptr, &outPath);
-    nfdresult_t res = NFD_OpenDialog({"gatobot"}, nullptr, &outPath);
+    nfdresult_t res = NFD_OpenDialog({"gatobot,mhr.json"}, nullptr, &outPath);
 
     if(res != NFD_OKAY) {
         free(outPath);
@@ -86,15 +90,29 @@ void GatoBot::loadNewReplay() {
     ReplayType rType = ReplayType::GatoBotR;
 
     // MH replay
-    //if(strstr(outPath, "mhr.json") != NULL) rType = ReplayType::MegaHack;
+    if(strstr(outPath, "mhr.json") != NULL) rType = ReplayType::MegaHack;
 
     free(outPath);
 
     if(data.length() > 0) {
-        loadReplay(data, rType);
-        auto alert = gd::FLAlertLayer::create(nullptr, "Success", "OK", nullptr, "Replay loaded!");
-        alert->m_pTargetLayer = (CCNode*)botMenu;
-        alert->show();
+        auto ret = loadReplay(data, rType);
+
+        if(ret == Success) {
+            auto alert = gd::FLAlertLayer::create(nullptr, "Success", "OK", nullptr, "Replay loaded!");
+            alert->m_pTargetLayer = (CCNode*)botMenu;
+            alert->show();
+        }
+        if(ret == MissingFrames) {
+            auto alert = gd::FLAlertLayer::create(nullptr, "Warning", "OK", nullptr, 360, "This replay seems to have missing frames.\n<cy>Make sure the Mega Hack replay is recorded with the \"Frame Fixes\" accuracy.</c>");
+            alert->m_pTargetLayer = (CCNode*)botMenu;
+            alert->show();
+        }
+        if(ret == Failed) {
+            // error
+            auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, "Failed to load replay!");
+            alert->m_pTargetLayer = (CCNode*)botMenu;
+            alert->show();
+        }
     }
     else {
         // error
@@ -104,7 +122,9 @@ void GatoBot::loadNewReplay() {
     }
 }
 
-void GatoBot::loadReplay(std::string replayDataCompressed, ReplayType rType = ReplayType::GatoBotR) {
+ReplayLoadStatus GatoBot::loadReplay(std::string replayDataCompressed, ReplayType rType = ReplayType::GatoBotR) {
+    ReplayLoadStatus retCode = Success;
+
     // remove currently loaded frames
     levelFrames.clear();
 
@@ -139,68 +159,58 @@ void GatoBot::loadReplay(std::string replayDataCompressed, ReplayType rType = Re
     }
     // parse MegaHack replay
     if(rType == ReplayType::MegaHack) {
-        using namespace nlohmann;
-
         json data = json::parse(replayData);
 
         auto events = data["events"];
 
-        bool isHolding = false;
-        int curF = 0;
+        // sort just in case
+        std::sort(events.begin(), events.end(), compareMHevents);
 
+        // allocate (ig?)
+        levelFrames.resize(events.back()["frame"] + 1);
+
+        // apply to frames
         for (json::iterator it = events.begin(); it != events.end(); it++) {
-            // - parse event
             const auto item = it.value();
+            const int curFrame = item["frame"];
 
-            item["frame"].get_to(curF);
-                
-            // player data
-            PlayerData pData;
+            if(!item.contains("p2")) {
+                auto pData = PlayerData::fromJson(item);
 
-            item["x"].get_to(pData.position.x);
-            item["y"].get_to(pData.position.y);
-            item["a"].get_to(pData.yVel);
+                const auto oldData = levelFrames[curFrame].player1;
 
-            // click
-            if(item.contains("down")) {
-                item["down"].get_to(isHolding);
+                if(oldData.action != None) 
+                    pData.action = oldData.action;
 
-                pData.action = isHolding ? ButtonType::Pressed : ButtonType::Released;
-
-                pData.isHolding = isHolding;
+                levelFrames[curFrame].player1 = pData;
             }
             else {
-                pData.action = ButtonType::None;
+                auto pData = PlayerData::fromJson(item);
+
+                const auto oldData = levelFrames[curFrame].player2;
+
+                if(oldData.action != None) 
+                    pData.action = oldData.action;
+
+                levelFrames[curFrame].player2 = pData;
             }
 
-            // new frame
-            if(curF + 1 > levelFrames.size()) {
-                LevelFrameData frame;
-                frame.frame = curF;
+            levelFrames[curFrame].frame = curFrame;
+        }
 
-                if(item.contains("p2"))
-                    frame.player2 = pData;
-
-                else frame.player1 = pData;
-
-                levelFrames.push_back(frame);
-            }
-            else {
-                LevelFrameData frame = levelFrames[curF];
-
-                if(item.contains("p2")) {
-                    frame.player2 = pData;
-                }
-
-                else frame.player1 = pData;
-
-                levelFrames[curF] = frame;
+        // warning if not frame fixes accuracy
+        for(size_t i = 0; i < levelFrames.size(); i++) {
+            if(levelFrames[i].frame != i) {
+                retCode = MissingFrames;
+                break;
             }
         }
     }
 
     // sort clicks if some shit went wrong and they got shuffled
     std::sort(levelFrames.begin(), levelFrames.end(), compareFramesForPrac);
+
+    return retCode;
 }
 
 LevelFrameData GatoBot::frameFromString(std::string frameData) {
@@ -245,4 +255,20 @@ LevelFrameData GatoBot::frameFromString(std::string frameData) {
 void PlayerData::applyToPlayer(gd::PlayerObject* player) {
     MBO(CCPoint, player, 0x67C) = position;
     MBO(double, player, 0x628) = yVel;
+}
+
+PlayerData PlayerData::fromJson(json jsonData) {
+    PlayerData data;
+
+    data.position = CCPoint(
+        jsonData["x"], jsonData["y"]
+    );
+
+    data.yVel = jsonData["a"];
+
+    if(jsonData.contains("down")) {
+        data.action = jsonData["down"] ? Pressed : Released;
+    }
+
+    return data;
 }

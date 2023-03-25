@@ -91,6 +91,9 @@
         "variant": "cpp",
         "any": "cpp",
         "cwctype": "cpp",
-        "span": "cpp"
-    }
+        "span": "cpp",
+        "ranges": "cpp",
+        "valarray": "cpp"
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }
