@@ -67,8 +67,6 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
         }
     }
 
-    PlayLayer_updateO(self, dt);
-
     // done replaying / rendering
     if(bot->status != Recording && bot->currentFrame + 1 >= bot->levelFrames.size()) {
         if(bot->status == Replaying) bot->toggleReplay();
@@ -82,24 +80,22 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
         && bot->levelFrames.size() > 0 
         && (size_t)bot->currentFrame < bot->levelFrames.size()) // shut up cmake 
     {
-
         LevelFrameData frame = bot->levelFrames[bot->currentFrame];
-
-        // next frame
-        LevelFrameData nextFrame = bot->levelFrames[bot->currentFrame + 1];
 
         // jump
         // player 1
-        if(nextFrame.player1.action != None) {
-            if(nextFrame.player1.action == Pressed) self->pushButton(1, true);
+        if(frame.player1.action != None) {
+            if(frame.player1.action == Pressed) self->pushButton(1, true);
             else self->releaseButton(1, true);
         }
 
         // player 2
-        if(nextFrame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
-            if(nextFrame.player2.action == Pressed) self->pushButton(1, false);
+        if(frame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
+            if(frame.player2.action == Pressed) self->pushButton(1, false);
             else self->releaseButton(1, false);
         }
+
+        PlayLayer_updateO(self, dt);
 
         frame.player1.applyToPlayer(self->m_pPlayer1);
         frame.player2.applyToPlayer(self->m_pPlayer2);
@@ -108,6 +104,8 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
         bot->currentFrame++;
     }
     else {
+        PlayLayer_updateO(self, dt);
+
         // update recording
         if(bot->status == Recording && self->m_pPlayer1->getPositionX() > 0
             && !MBO(bool, self, 0x39C) // isDead?
