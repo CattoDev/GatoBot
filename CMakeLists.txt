@@ -3,8 +3,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(GatoBot)
 
-set(BUILD_BOOTSTRAPPER ON) # geode
-
 set(MAINPATH "C:/Programming/gdmods/GatoBot")
 
 # src files
