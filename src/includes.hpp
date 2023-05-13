@@ -2,8 +2,10 @@
 
 #include <MinHook.h>
 
+#ifndef GB_GEODE
 #include <cocos2d.h>
 using namespace cocos2d;
+#endif
 
 #include <gd.h>
 

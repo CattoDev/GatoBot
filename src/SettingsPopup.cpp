@@ -3,11 +3,11 @@
 
 #include <nfd.h>
 
-void SettingsPopup::createTextInput(const char* caption, int maxchars, int width, int height, const char* charFilter = nullptr, CCPoint pos = CCPointZero, float scale = .4f, const char* font = "bigFont.fnt") {
+extension::CCScale9Sprite* SettingsPopup::createTextInput(const char* caption, int maxchars, int width, int height, const char* charFilter = nullptr, CCPoint pos = CCPointZero, float scale = .4f, const char* font = "bigFont.fnt") {
     // bitrate input
     auto inputBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     inputBG->setScale(scale);
-    inputBG->setContentSize(CCSize(width / scale + 50, 80));
+    inputBG->setContentSize(CCSize(width / scale + 50, height / scale));
     inputBG->setOpacity(100);
     inputBG->setPosition(pos);
 
@@ -25,6 +25,8 @@ void SettingsPopup::createTextInput(const char* caption, int maxchars, int width
     m_pButtonMenu->addChild(input, 1);
 
     textInputs.push_back(input);
+
+    return inputBG;
 }
 
 void SettingsPopup::createHelpBtn(const char* helpText, CCPoint pos, float scale) {
@@ -39,7 +41,13 @@ void SettingsPopup::createHelpBtn(const char* helpText, CCPoint pos, float scale
     m_pButtonMenu->addChild(helpBtn, 3);
 }
 
-void SettingsPopup::createToggle(const char* text, CCPoint togglePos, const char* helpText = nullptr) {
+void SettingsPopup::createToggle(const char* text, const char* helpText = nullptr) {
+    // positioning
+    auto togglePos = CCPoint(-210, 230);
+
+    int differenceY = 30 * toggles.size();
+    togglePos = togglePos + CCPoint(0, -differenceY);
+
     // checkbox
     auto toggle = gd::CCMenuItemToggler::createWithStandardSprites(this, menu_selector(SettingsPopup::onToggle), .8);
     toggle->setPosition(togglePos);
@@ -139,7 +147,7 @@ bool SettingsPopup::init() {
     m_pLayer->addChild(bitrateLabel, 1);
 
     // video bitrate input
-    createTextInput("bitrate", 6, 100, 40, "0123456789", winSize / 2 + CCPoint(160, 70));
+    createTextInput("bitrate", 6, 100, 30, "0123456789", winSize / 2 + CCPoint(160, 70));
     textInputs[0]->setString(std::to_string(bot->settings.bitrate).c_str());
 
     // codec label
@@ -150,7 +158,7 @@ bool SettingsPopup::init() {
     m_pLayer->addChild(codecLabel, 1);
 
     // codec input
-    createTextInput("codec", 20, 100, 40, nullptr, winSize / 2 + CCPoint(160, -40));
+    createTextInput("codec", 20, 100, 30, nullptr, winSize / 2 + CCPoint(160, -40));
     textInputs[1]->setString(bot->settings.codec.c_str());
 
     // codec help
@@ -162,11 +170,13 @@ bool SettingsPopup::init() {
     createCodecBtn("AMD", "GJ_button_06.png", "h264_amf", {200, 40});
 
     // toggles
-    createToggle("Capture MHv7\nlabels", {-210, 200}, "Capture MHv7 labels, like run info, cheat indicator...");
-    createToggle("Capture MHv7\ndraw nodes", {-210, 170}, "Capture Mega Hack v7 draw nodes, such as hitboxes and trajectory lines.");
-    createToggle("Capture %", {-210, 140}, "Capture the percentage label.");
-    createToggle("Include level\nsong", {-210, 110}, "Output the video with the level song.");
-    createToggle("Show console", {-210, 80}, "Show the FFmpeg console window.");
+    createToggle("Capture MHv7\nLabels", "Capture MHv7 labels, like run info, cheat indicator...");
+    createToggle("Capture MHv7\nDraw Nodes", "Capture Mega Hack v7 draw nodes, such as hitboxes and trajectory lines.");
+    createToggle("Capture %", "Capture the percentage label.");
+    createToggle("Include Level\nSong", "Output the video with the level song.");
+    createToggle("Show Console", "Show the FFmpeg console window.");
+    createToggle("Fast Render", "Speed up the rendering by not drawing the rendered frames on screen.");
+    createToggle("Ending Delay", "Delay finishing a render for a specific amount of time.\nCan be used to show level endscreens and such.");
 
     // preset toggle
     toggles[3]->toggle(true);
@@ -183,14 +193,21 @@ bool SettingsPopup::init() {
 
     createResInputs(winSize / 2 + CCPoint(0, 70));
 
-    createResBtn("720p", "GJ_button_04.png", {-50, 160}, {1280, 720, 60});
-    createResBtn("1080p", "GJ_button_04.png", {-16.75, 160}, {1920, 1080, 60});
-    createResBtn("4K", "GJ_button_04.png", {16.75, 160}, {3840, 2160, 60});
-    createResBtn("8K", "GJ_button_04.png", {50, 160}, {7680, 4320, 60});
+    createResBtn("720p", "GJ_button_04.png", {-50, 160}, {1280, 720, 6000});
+    createResBtn("1080p", "GJ_button_04.png", {-16.75, 160}, {1920, 1080, 10000});
+    createResBtn("4K", "GJ_button_04.png", {16.75, 160}, {3840, 2160, 50000});
+    createResBtn("8K", "GJ_button_04.png", {50, 160}, {7680, 4320, 100000});
 
     // file path
-    createTextInput("output path", MAX_PATH, 140, 40, nullptr, m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(CCPoint(-30, 45))), .4, "chatFont.fnt");
-    textInputs[5]->setString(videoPath.c_str());
+    createTextInput("output path", MAX_PATH, 110, 60, nullptr, m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(CCPoint(-15, 50))), .4, "chatFont.fnt");
+    auto filePathInput = textInputs[5];
+    filePathInput->setDelegate(this);
+    filePathInput->setVisible(false);
+
+    filePathArea = gd::TextArea::create("chatFont.fnt", true, "file path", 1, 160, 15, CCPoint(.5, .5));
+    filePathArea->setPosition(filePathInput->getPosition());
+    filePathArea->setScale(.75);
+    m_pButtonMenu->addChild(filePathArea, 1);
 
     auto filePathBtnSpr = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
     auto filePathBtn = gd::CCMenuItemSpriteExtra::create(filePathBtnSpr, this, menu_selector(SettingsPopup::onChoosePath));
@@ -205,21 +222,28 @@ bool SettingsPopup::init() {
 
     m_pLayer->addChild(audioBitrateLabel, 1);
 
-    createTextInput("bitrate", 6, 100, 40, "0123456789", winSize / 2 + CCPoint(160, 15));
+    createTextInput("bitrate", 6, 100, 30, "0123456789", winSize / 2 + CCPoint(160, 15));
     textInputs[6]->setString(std::to_string(bot->settings.audioBitrate).c_str());
 
     // extra arguments
-    createTextInput("extra args (optional)", 200, 140, 40, nullptr, winSize / 2 + CCPoint(0, -25), .4, "chatFont.fnt");
+    createTextInput("extra args (optional)", 200, 140, 30, nullptr, winSize / 2 + CCPoint(0, -15), .4, "chatFont.fnt");
     textInputs[7]->setString(bot->settings.extraArguments.c_str());
 
     // game fps
-    createTextInput("FPS", 4, 80, 40, "0123456789", winSize / 2 + CCPoint(30, 15));
+    createTextInput("FPS", 4, 60, 30, "0123456789", winSize / 2 + CCPoint(40, 17.5), .35);
     textInputs[8]->setString(std::to_string(bot->getCurrentFPS()).c_str());
 
-    auto fpsLabel = CCLabelBMFont::create("Game\nFPS:", "bigFont.fnt");
-    fpsLabel->setPosition(winSize / 2 + CCPoint(-50, 17.5));
-    fpsLabel->limitLabelWidth(40, 1, .1);
+    auto fpsLabel = CCLabelBMFont::create("Game FPS:", "bigFont.fnt");
+    fpsLabel->setPosition(winSize / 2 + CCPoint(-40, 17.5));
+    fpsLabel->limitLabelWidth(80, 1, .1);
     m_pLayer->addChild(fpsLabel, 2);
+
+    // delay input
+    delayInputBG = createTextInput("seconds", 2, 50, 30, "012345679.", m_pButtonMenu->convertToWorldSpace(toggles[6]->getPosition()) + CCPoint(20, -35), .3);
+    delayInput = textInputs.back();
+
+    delayInputBG->setVisible(false);
+    delayInput->setVisible(false);
 
     // other
     setTouchEnabled(true);
@@ -234,9 +258,9 @@ void SettingsPopup::createResInputs(CCPoint position) {
     auto frameSize = dir->getOpenGLView()->getFrameSize();
     auto winSize = dir->getWinSize();
 
-    createTextInput("width", 4, 30, 10, "0123456789", position + CCPoint(-50, 0), .2);
-    createTextInput("height", 4, 30, 10, "0123456789", position, .2);
-    createTextInput("FPS", 3, 30, 10, "0123456789", position + CCPoint(50, 0), .2);
+    createTextInput("width", 4, 30, 15, "0123456789", position + CCPoint(-50, 0), .2);
+    createTextInput("height", 4, 30, 15, "0123456789", position, .2);
+    createTextInput("FPS", 3, 30, 15, "0123456789", position + CCPoint(50, 0), .2);
 
     // labels
     auto xLabel = CCLabelBMFont::create("x", "bigFont.fnt");
@@ -283,7 +307,8 @@ void SettingsPopup::onResolution(CCObject* pSender) {
 
     textInputs[2]->setString(std::to_string(res.width).c_str());
     textInputs[3]->setString(std::to_string(res.height).c_str());
-    textInputs[4]->setString(std::to_string(res.fps).c_str());
+    textInputs[4]->setString("60");
+    textInputs[0]->setString(std::to_string(res.bitrate).c_str());
 }
 
 void SettingsPopup::onChoosePath(CCObject*) {
@@ -306,6 +331,7 @@ void SettingsPopup::onChoosePath(CCObject*) {
     free(outPath);
 
     textInputs[5]->setString(videoPath.c_str());
+    filePathArea->setString(videoPath);
 }
 
 void SettingsPopup::onToggle(CCObject* pSender) {
@@ -322,6 +348,13 @@ void SettingsPopup::onToggle(CCObject* pSender) {
             PostMessage(window, WM_CLOSE, 0, 0);
             GatoBot::sharedState()->settings.showConsoleWindow = false;
         }
+    }
+
+    if(toggle->getTag() == toggles[6]->getTag()) {
+        bool toggled = !toggle->isToggled();
+
+        delayInputBG->setVisible(toggled);
+        delayInput->setVisible(toggled);
     }
 }
 
@@ -355,6 +388,8 @@ void SettingsPopup::onApply(CCObject*) {
         return;
     }
 
+    videoPath = std::string(textInputs[5]->getString());
+
     // path
     if(videoPath.empty()) {
         auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, 400, "Please choose where to save the video.");
@@ -362,6 +397,12 @@ void SettingsPopup::onApply(CCObject*) {
         alert->show();
         return;
     }
+
+    // delay
+    float delay = std::strtof(delayInput->getString(), nullptr);
+
+    if(delay > 99) delay = 99;
+    if(delay < 0) delay = 0;
 
     auto dir = CCDirector::sharedDirector();
     bot->lastSPF = dir->getAnimationInterval();
@@ -383,6 +424,10 @@ void SettingsPopup::onApply(CCObject*) {
     bot->settings.targetFPS = enteredFPS;
     bot->settings.targetGameFPS = enteredGameFPS;
     bot->settings.showConsoleWindow = toggles[4]->isToggled();
+    bot->settings.fastRender = toggles[5]->isToggled();
+    bot->settings.delayEnd = toggles[6]->isToggled();
+
+    bot->settings.renderDelay = delay;
 
     bot->settings.extraArguments = std::string(textInputs[7]->getString());
 
@@ -405,4 +450,10 @@ void SettingsPopup::keyBackClicked() {
     GatoBot::sharedState()->botMenu->toggleButtons(true);
 
     FLAlertLayer::keyBackClicked();
+}
+
+void SettingsPopup::textChanged(gd::CCTextInputNode* inputNode) {
+    auto str = std::string(inputNode->getString());
+    if(str.length() <= 120)
+        filePathArea->setString(str);
 }

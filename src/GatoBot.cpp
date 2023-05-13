@@ -9,6 +9,7 @@ GatoBot* GatoBot::sharedState() {
         instance->currentFrame = 0;
         instance->frameDelta = 0;
         instance->timeFromStart = 0;
+        instance->endDelayStart = 0;
         instance->player1holding = false;
         instance->player2holding = false;
         instance->currentPauseLayer = nullptr;
@@ -19,9 +20,8 @@ GatoBot* GatoBot::sharedState() {
         instance->lastSPF = CCDirector::sharedDirector()->getAnimationInterval();
         instance->currentFrameHasData = false;
         instance->presetSettings = false;
-        instance->usingGeode = false;
 
-        instance->settings.targetFPS = instance->getCurrentFPS();
+        instance->targetFPS = instance->getCurrentFPS();
 
         instance->levelFrames.reserve(99999);
     }
@@ -36,9 +36,10 @@ void GatoBot::preset() {
     if(!presetSettings) {
         if(CCEGLView::sharedOpenGLView() != nullptr) { 
             auto frameSize = CCEGLView::sharedOpenGLView()->getFrameSize();
-            instance->settings.targetWidth = static_cast<int>(frameSize.width);
-            instance->settings.targetHeight = static_cast<int>(frameSize.height);
-            instance->settings.targetGameFPS = instance->settings.targetFPS;
+            settings.targetWidth = static_cast<int>(frameSize.width);
+            settings.targetHeight = static_cast<int>(frameSize.height);
+            settings.targetGameFPS = instance->targetFPS;
+            settings.targetFPS = 60;
 
             presetSettings = true;
         }
@@ -110,6 +111,19 @@ void GatoBot::retryLevel() {
     GatoBot::PauseLayer_onRetry(currentPauseLayer, nullptr);
 }
 
+float GatoBot::getSongPitch() {
+    float ret = 1;
+
+    auto fmod = gd::FMODAudioEngine::sharedEngine();
+    if(fmod->isBackgroundMusicPlaying()) {
+        auto channel = fmod->m_pGlobalChannel;
+
+        FMOD_Channel_getPitch(channel, &ret);
+    }
+
+    return ret;
+}
+
 void GatoBot::setSongPitch(float pitch) {
     auto fmod = gd::FMODAudioEngine::sharedEngine();
     if(fmod->isBackgroundMusicPlaying()) {
@@ -124,8 +138,12 @@ void GatoBot::setSongPitch(float pitch) {
     }
 }
 
-void GatoBot::resetBasicVariables() {
-    if(status == Rendering) toggleRender();
+void GatoBot::resetBasicVariables(bool force) {
+    if(status == Rendering) {
+        if(!force) toggleRenderDelayed();
+        else toggleRender();
+    }
+
     if(status == Recording) toggleRecord();
     if(status == Replaying) toggleReplay();
 }
@@ -138,7 +156,7 @@ void GatoBot::setupBot() {
 
     self->cocosBaseAddr = cocosBase;
 
-    // update hook addr
+    // hook addresses
     self->updateHookAddr = GetProcAddress(cocosBase, "?update@CCScheduler@cocos2d@@UAEXM@Z");
 
     // declare inline funcs
@@ -154,89 +172,21 @@ void GatoBot::setupBot() {
         GetProcAddress(fmodBase, "FMOD_Channel_SetPosition")
     );
 
+    GatoBot::FMOD_Channel_getPitch = reinterpret_cast<decltype(GatoBot::FMOD_Channel_getPitch)>(
+        GetProcAddress(fmodBase, "FMOD_Channel_GetPitch")
+    );
+
     GatoBot::FMOD_Channel_setPitch = reinterpret_cast<decltype(GatoBot::FMOD_Channel_setPitch)>(
         GetProcAddress(fmodBase, "?setPitch@ChannelControl@FMOD@@QAG?AW4FMOD_RESULT@@M@Z")
     );
 
     GatoBot::PauseLayer_onRetry = reinterpret_cast<decltype(GatoBot::PauseLayer_onRetry)>(gd::base + 0x1E6040);
+}
 
-    // PlayLayer::update
-    /*MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x2029c0),
-        reinterpret_cast<void*>(&PlayLayer_updateH),
-        reinterpret_cast<void**>(&PlayLayer_updateO)
-    );
-
-    // GJBaseGameLayer::pushButton
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x111500),
-        reinterpret_cast<void*>(&GJBaseGameLayer_pushButtonH),
-        reinterpret_cast<void**>(&GJBaseGameLayer_pushButtonO)
-    );
-
-    // GJBaseGameLayer::releaseButton
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x111660),
-        reinterpret_cast<void*>(&GJBaseGameLayer_releaseButtonH),
-        reinterpret_cast<void**>(&GJBaseGameLayer_releaseButtonO)
-    );
-
-    // UILayer::onCheck
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x25fb60),
-        reinterpret_cast<void*>(&UILayer_onCheckH),
-        reinterpret_cast<void**>(&UILayer_onCheckO)
-    );
-
-    // PlayLayer::tryPlaceCheckpoint (MIDHOOK)
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20b487),
-        reinterpret_cast<void*>(&PlayerObject_tryPlaceCheckpointH),
-        reinterpret_cast<void**>(&PlayerObject_tryPlaceCheckpointO)
-    );
-
-    // PlayLayer::removeLastCheckpoint
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20b830),
-        reinterpret_cast<void*>(&PlayLayer_removeLastCheckpointH),
-        reinterpret_cast<void**>(&PlayLayer_removeLastCheckpointO)
-    );
-
-    // PlayLayer::resetLevel
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20bf00),
-        reinterpret_cast<void*>(&PlayLayer_resetLevelH),
-        reinterpret_cast<void**>(&PlayLayer_resetLevelO)
-    );
-
-    // PlayLayer::onComplete
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1fd3d0),
-        reinterpret_cast<void*>(&PlayLayer_levelCompleteH),
-        reinterpret_cast<void**>(&PlayLayer_levelCompleteO)
-    );
-
-    // PlayLayer::onQuit
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20d810),
-        reinterpret_cast<void*>(&PlayLayer_onQuitH),
-        reinterpret_cast<void**>(&PlayLayer_onQuitO)
-    );
-
-    // PlayLayer::destroyPlayer
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20a1a0),
-        reinterpret_cast<void*>(&PlayLayer_destroyPlayerH),
-        reinterpret_cast<void**>(&PlayLayer_destroyPlayerO)
-    );
-
-    MH_EnableHook(MH_ALL_HOOKS);
-
-    // - disabled by default
-    // CCScheduler::update
-    MH_CreateHook(
-        bot->updateHookAddr,
-        reinterpret_cast<void*>(&CCScheduler_updateH),
-        reinterpret_cast<void**>(&CCScheduler_updateO)
-    );*/
+void GatoBot::toggleHook(ToggleHookType hType, bool toggle) {
+    switch(hType) {
+        case SchedulerUpdate:
+            if(toggle) MH_EnableHook(updateHookAddr);
+            break;
+    }
 }

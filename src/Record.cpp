@@ -4,38 +4,6 @@
 #include <sstream>
 #include <nfd.h>
 
-/*void GatoBot::toggleRecord(float newSPF, float speed) {
-    if(status == Recording) {
-        status = Disabled;
-
-        // reset fps
-        auto dir = CCDirector::sharedDirector();
-        dir->setAnimationInterval(lastSPF);
-        dir->getScheduler()->setTimeScale(1);
-        setSongPitch(1);
-    }
-    else {
-        levelFrames.clear();
-
-        if(newSPF > 0 && speed > 0) {
-            auto dir = CCDirector::sharedDirector();
-
-            lastSPF = dir->getAnimationInterval();
-
-            settings.targetSPF = newSPF;
-            settings.targetSpeed = speed;
-
-            // Speedhack (Classic Mode)
-            dir->setAnimationInterval(newSPF);
-            dir->getScheduler()->setTimeScale(speed);
-        }
-
-        status = Recording;
-    }
-
-    updateStatusLabel();
-}*/
-
 void GatoBot::toggleRecord(int FPS, float speed) {
     if(status == Recording) {
         status = Disabled;
@@ -57,7 +25,7 @@ void GatoBot::toggleRecord(int FPS, float speed) {
 
             settings.targetSPF = newSPF;
             settings.targetSpeed = speed;
-            settings.targetFPS = FPS;
+            targetFPS = FPS;
 
             dir->setAnimationInterval(newSPF);
             dir->getScheduler()->setTimeScale(speed);
@@ -67,6 +35,18 @@ void GatoBot::toggleRecord(int FPS, float speed) {
     }
 
     updateStatusLabel();
+}
+
+// dumbass
+void handlePlayerAction(PlayerData& player, ButtonType& btn) {
+    if(player.isHolding) {
+        player.action = Pressed;
+        btn = Pressed;
+    }
+    else {
+        player.action = Released;
+        btn = Released;
+    }
 }
 
 void GatoBot::handleFrame(gd::PlayLayer* pLayer) {
@@ -122,40 +102,37 @@ void GatoBot::saveReplay(std::string& filePath) {
         filePath.append(".gatobot");
     }
 
-    std::ofstream saveFile(filePath);
-
     // convert data to string
     std::stringstream saveData;
     for(auto frame : levelFrames) {
         // frame count
         saveData << frame.frame;
         saveData << "_";
-        
-        // player 1 data
-        if(frame.player1.action == ButtonType::None) saveData << 0;
-        if(frame.player1.action == ButtonType::Pressed) saveData << 1;
-        if(frame.player1.action == ButtonType::Released) saveData << 2;
 
-        saveData << ",";
-        saveData << frame.player1.position.x << std::setprecision(8);
-        saveData << ",";
-        saveData << frame.player1.position.y << std::setprecision(8);
-        saveData << ",";
-        saveData << frame.player1.yVel << std::setprecision(8);
-        saveData << "~";
+        bool isP2 = false;
 
-        // player 2 data
-        if(frame.player2.action == ButtonType::None) saveData << 0;
-        if(frame.player2.action == ButtonType::Pressed) saveData << 1;
-        if(frame.player2.action == ButtonType::Released) saveData << 2;
+        while(true) {
+            PlayerData& pData = isP2 ? frame.player2 : frame.player1;
 
-        saveData << ",";
-        saveData << frame.player2.position.x << std::setprecision(8);
-        saveData << ",";
-        saveData << frame.player2.position.y << std::setprecision(8);
-        saveData << ",";
-        saveData << frame.player2.yVel << std::setprecision(8);
-        
+            if(pData.action == ButtonType::None) saveData << 0;
+            if(pData.action == ButtonType::Pressed) saveData << 1;
+            if(pData.action == ButtonType::Released) saveData << 2;
+
+            saveData << ",";
+            saveData << pData.position.x << std::setprecision(8);
+            saveData << ",";
+            saveData << pData.position.y << std::setprecision(8);
+            saveData << ",";
+            saveData << pData.yVel << std::setprecision(8);
+            saveData << ",";
+            saveData << pData.rotation << std::setprecision(8);
+
+            if(isP2) break;
+
+            saveData << "~";
+            isP2 = true;
+        }
+
         saveData << ";";
     }
 
@@ -163,6 +140,7 @@ void GatoBot::saveReplay(std::string& filePath) {
     auto compressed = ZipUtils_compressString(gdstring(saveData.str()), false, 11);
 
     // write to file
+    std::ofstream saveFile(filePath);
     saveFile << std::string(compressed.sv());
 
     // done
@@ -179,5 +157,32 @@ void GatoBot::handleClick(gd::GJBaseGameLayer* self, bool rightSide, ButtonType 
             queuedBtnP2 = btnType;
 
         else queuedBtnP1 = btnType;
+    }
+}
+
+// unused
+void GatoBot::organizeReplay() {
+    // organize actions
+    ButtonType lastBtnP1 = None;
+    ButtonType lastBtnP2 = None;
+
+    for(LevelFrameData& frame : levelFrames) {
+        bool isP2 = false;
+
+        while(true) {
+            PlayerData &pData = isP2 ? frame.player2 : frame.player1;
+
+            ButtonType& lastBtnVar = isP2 ? lastBtnP2 : lastBtnP1;
+
+            if(pData.action != lastBtnVar) {
+                lastBtnVar = pData.action;
+            }
+            else {
+                pData.action = None;
+            }
+
+            if(isP2) break;
+            else isP2 = true;
+        }
     }
 }

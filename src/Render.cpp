@@ -7,49 +7,44 @@
 #define logRender(renderLogs) if(GatoBot::sharedState()->settings.showConsoleWindow) std::cout << renderLogs
 
 void GatoBot::updateRender() {
-    if(levelFrames.size() > currentFrame) {
-        /*
-            capture frame data
-        */
-        auto dir = CCDirector::sharedDirector();
-        auto texSize = dir->getOpenGLView()->getFrameSize();
+    /*
+        capture frame data
+    */
+    auto dir = CCDirector::sharedDirector();
+    auto texSize = dir->getOpenGLView()->getFrameSize();
 
-        int frameW = settings.targetWidth;
-        int frameH = settings.targetHeight;
+    int frameW = settings.targetWidth;
+    int frameH = settings.targetHeight;
 
-        std::vector<GLubyte> frameData;
-        frameData.resize(frameW * frameH * 4);
+    std::vector<GLubyte> frameData;
+    frameData.resize(frameW * frameH * 4);
 
-        /* 
-            Get frame data 
-        */
-        // stolen from CCRenderTexture lmao 
-        glViewport(0, 0, frameW, frameH);
+    /* 
+        Get frame data 
+    */
+    // stolen from CCRenderTexture lmao 
+    glViewport(0, 0, frameW, frameH);
 
-        glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &m_pOldFBO);
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pFBO);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &m_pOldFBO);
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pFBO);
         
-        visitPlayLayer();
+    visitPlayLayer(); // draw PlayLayer
 
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadPixels(0, 0, frameW, frameH, GL_RGBA, GL_UNSIGNED_BYTE, frameData.data());
+    // pixels
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, frameW, frameH, GL_RGBA, GL_UNSIGNED_BYTE, frameData.data());
 
-        // reset viewport
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pOldFBO);
-        dir->setViewport();
+    // reset viewport
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pOldFBO);
+    dir->setViewport();
 
-        // set data
-        threadLock.lock();
-        currentFrameData = frameData;
-        currentFrameHasData = true;
-        threadLock.unlock();
+    // set data
+    threadLock.lock();
+    currentFrameData = frameData;
+    currentFrameHasData = true;
+    threadLock.unlock();
 
-        updateStatusLabel();
-    }
-    else {
-        // finish rendering
-        if(status == Rendering) toggleRender();
-    }
+    updateStatusLabel();
 }
 
 void drawObjectLayer(CCLayer* m_pObjectLayer) {
@@ -105,7 +100,6 @@ void GatoBot::visitPlayLayer() {
     /* 
         only draw wanted elements
     */
-
     kmGLPushMatrix();
 
     if(pLayer->getGrid() != nullptr) {
@@ -348,8 +342,8 @@ void GatoBot::toggleRender() {
         // disable speedhack anticheat
         patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0x90, 0x90, 0x90, 0x90, 0x90});
 
-        // remove FPS cap
         toggleGameFPSCap(false);
+        toggleHook(SchedulerUpdate, true);
 
         // start rendering thread
         std::thread(renderingThread, this).detach();
@@ -358,7 +352,10 @@ void GatoBot::toggleRender() {
         status = Disabled;
 
         renderingTexture->release();
+        
         toggleGameFPSCap(true);
+        toggleHook(SchedulerUpdate, false);
+
         patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0xE8, 0x3B, 0xAD, 0x00, 0x00});
 
         CCDirector::sharedDirector()->setAnimationInterval(lastSPF);
@@ -367,4 +364,21 @@ void GatoBot::toggleRender() {
     }
 
     updateStatusLabel();
+
+    endDelayStart = 0;
+}
+
+void GatoBot::toggleRenderDelayed() {
+    if(!settings.delayEnd) {
+        toggleRender();
+        return;
+    }
+
+    /*auto func = CCCallFunc::create(this, callfunc_selector(GatoBot::toggleRender));
+    auto seq = CCSequence::create(CCDelayTime::create(time), func, nullptr);
+
+    runAction(seq);*/
+
+    if(endDelayStart == 0)
+        endDelayStart = timeFromStart;
 }

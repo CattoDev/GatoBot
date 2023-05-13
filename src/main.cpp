@@ -14,17 +14,20 @@ bool __fastcall PlayLayer_initH(gd::PlayLayer* self, uintptr_t, gd::GJGameLevel*
     bot->player2holding = false;
     bot->currentFrame = 0;
     bot->practiceCheckpoints.clear();
+    
     bot->queuedBtnP1 = None;
     bot->queuedBtnP2 = None;
+    bot->lastBtnP1 = None;
+    bot->lastBtnP2 = None;
 
-    bot->resetBasicVariables();
+    bot->resetBasicVariables(true);
 
     // status label
     bot->statusLabel = CCLabelBMFont::create(" ", "bigFont.fnt");
     bot->statusLabel->setAnchorPoint(CCPointZero);
     bot->statusLabel->setPosition(10, 10);
     bot->statusLabel->setAlignment(CCTextAlignment::kCCTextAlignmentLeft);
-    bot->statusLabel->setScale(.7);
+    bot->statusLabel->setScale(.5);
 
     self->m_uiLayer->addChild(bot->statusLabel, 100);
 
@@ -40,41 +43,45 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
     if(bot->status != Disabled)
         bot->updateStatusLabel();
 
-    if(bot->status == Recording || bot->status == Replaying) {
+    if(bot->status == Recording || bot->status == Replaying || bot->status == Rendering) {
         auto dir = CCDirector::sharedDirector();
-
         const float tScale = dir->getScheduler()->getTimeScale();
 
-        // speed changed
-        if(tScale != bot->settings.targetSpeed) {
-            bot->settings.targetSPF = 1.f / (bot->settings.targetFPS * tScale);
-            bot->settings.targetSpeed = tScale;
-        }
-
-        // fps changed
-        if(dir->getAnimationInterval() != bot->settings.targetSPF) {
-            dir->setAnimationInterval(bot->settings.targetSPF);
-        }
-
-        // lock delta
-        dt = bot->settings.targetSPF * tScale;
-
-        // update checkpoints
-        if(bot->status == Recording) {
-            if(self->m_checkpoints->count() > bot->practiceCheckpoints.size()) {
-                bot->handleCheckpoint(self);
+        if(bot->status != Rendering) {
+            // speed changed
+            if(tScale != bot->settings.targetSpeed) {
+                bot->settings.targetSPF = 1.f / (bot->targetFPS * tScale);
+                bot->settings.targetSpeed = tScale;
             }
-        }
-    }
 
-    // done replaying / rendering
-    if(bot->status != Recording && bot->currentFrame + 1 >= bot->levelFrames.size()) {
-        if(bot->status == Replaying) bot->toggleReplay();
-        if(bot->status == Rendering) bot->toggleRender();
+            // fps changed
+            if(dir->getAnimationInterval() != bot->settings.targetSPF) {
+                dir->setAnimationInterval(bot->settings.targetSPF);
+            }
+
+            // fix audio speed
+            if(bot->getSongPitch() != tScale) {
+                bot->setSongPitch(tScale);
+            }
+
+            // update checkpoints
+            if(bot->status == Recording) {
+                if(self->m_checkpoints->count() > bot->practiceCheckpoints.size()) {
+                    bot->handleCheckpoint(self);
+                }
+            }
+
+            // lock delta
+            dt = bot->settings.targetSPF * tScale;
+        }
+        else {
+            // lock delta
+            dt = (1.f / bot->settings.targetGameFPS) * tScale;
+        }
     }
 
     // update replay / render
-    if((bot->status == Replaying || bot->status == Rendering) && self->m_pPlayer1->getPositionX() > 0 
+    if((bot->status == Replaying || bot->status == Rendering)
         && !MBO(bool, self, 0x39C) 
         && MBO(bool, self, 0x2EC)
         && bot->levelFrames.size() > 0 
@@ -82,32 +89,30 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
     {
         LevelFrameData frame = bot->levelFrames[bot->currentFrame];
 
-        // jump
-        // player 1
-        if(frame.player1.action != None) {
-            if(frame.player1.action == Pressed) self->pushButton(1, true);
-            else self->releaseButton(1, true);
+        if(frame.frame > -1) {
+            // jump
+            // player 1
+            if(frame.player1.action != None) {
+                if(frame.player1.action == Pressed) self->pushButton(1, true);
+                else self->releaseButton(1, true);
+            }
+
+            // player 2
+            if(frame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
+                if(frame.player2.action == Pressed) self->pushButton(1, false);
+                else self->releaseButton(1, false);
+            }
+
+            frame.player1.applyToPlayer(self->m_pPlayer1);
+            frame.player2.applyToPlayer(self->m_pPlayer2);
         }
-
-        // player 2
-        if(frame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
-            if(frame.player2.action == Pressed) self->pushButton(1, false);
-            else self->releaseButton(1, false);
-        }
-
-        PlayLayer_updateO(self, dt);
-
-        frame.player1.applyToPlayer(self->m_pPlayer1);
-        frame.player2.applyToPlayer(self->m_pPlayer2);
 
         // increment
         bot->currentFrame++;
     }
     else {
-        PlayLayer_updateO(self, dt);
-
         // update recording
-        if(bot->status == Recording && self->m_pPlayer1->getPositionX() > 0
+        if(bot->status == Recording
             && !MBO(bool, self, 0x39C) // isDead?
             && MBO(bool, self, 0x2EC)
         )
@@ -122,6 +127,15 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
                 bot->currentFrame = 0;
         }
     }
+
+    // done replaying / rendering
+    if(bot->status != Recording && bot->currentFrame >= bot->levelFrames.size()) {
+        if(bot->status == Replaying) bot->toggleReplay();
+        if(bot->status == Rendering) bot->toggleRenderDelayed();
+    }
+
+    // call original
+    PlayLayer_updateO(self, dt);
 }
 
 void loadHooks();
@@ -132,7 +146,7 @@ void __fastcall PauseLayer_customSetupH(gd::PauseLayer* self, uintptr_t) {
 
     auto bot = GatoBot::sharedState();
 
-    if(!bot->settings.loadedHooks && !bot->usingGeode)
+    if(!bot->settings.loadedHooks)
         loadHooks();
 
     bot->currentPauseLayer = self;
@@ -244,6 +258,9 @@ void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
 
             bot->queuedBtnP1 = None;
             bot->queuedBtnP2 = None;
+
+            bot->lastBtnP1 = bot->levelFrames.back().player1.action;
+            bot->lastBtnP2 = bot->levelFrames.back().player2.action;
         }
     }
 
@@ -265,21 +282,7 @@ void __fastcall PlayLayer_destroyPlayerH(gd::PlayLayer* self, uintptr_t, gd::Pla
 
     auto bot = GatoBot::sharedState();
 
-    if(MBO(bool, self->m_pPlayer1, 0x662) || MBO(bool, self, 0x39C)) return;
-
-    // guy wtf is this
-    auto magicNoclipSpike = MBO(gd::GameObject*, self, 0x530);
-
-    if(magicNoclipSpike == nullptr) {
-        if(bot->status == Rendering && MBO(bool, self, 0x39C)) bot->toggleRender();
-    }
-    else {
-        if(obj != nullptr) {
-            if(magicNoclipSpike->m_uID != obj->m_uID) {
-                if(bot->status == Rendering && MBO(bool, self, 0x39C)) bot->toggleRender();
-            }
-        }
-    }
+    if(bot->status == Rendering && MBO(bool, self, 0x39C)) bot->toggleRender();
 }
 
 void(__thiscall* CCScheduler_updateO)(CCScheduler*, float);
@@ -294,7 +297,7 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
         reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x20d3c0)(pLayer, false);
         
         if(bot->lastInfoCode == 1) {
-            auto alert = gd::FLAlertLayer::create(nullptr, "FFmpeg Error", "OK", nullptr, 400, CCString::createWithFormat("FFmpeg errored. Check the console for logs.")->m_sString);
+            auto alert = gd::FLAlertLayer::create(nullptr, "FFmpeg Error", "OK", nullptr, 400, CCString::createWithFormat("<cr>FFmpeg errored. Check the console for logs.</c>")->m_sString);
             alert->m_pTargetLayer = bot->currentPauseLayer;
             alert->show();
         }
@@ -306,10 +309,21 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
     }
 
     if(bot->status == Rendering && !bot->gamePaused) {
+        // delay
+        if(bot->timeFromStart - bot->endDelayStart >= bot->settings.renderDelay && bot->endDelayStart > 0) {
+            bot->toggleRender();
+
+            return;
+        }
+
         if(!bot->currentFrameHasData) {
+            auto pLayer = gd::PlayLayer::get();
             float deltaTime = 1.f / static_cast<float>(bot->settings.targetGameFPS); // constant delta time
 
-            if(bot->currentFrame % bot->settings.divideFramesBy == 0 && pLayer->m_pPlayer1->getPositionX() > 0) {
+            if(bot->currentFrame % bot->settings.divideFramesBy == 0
+                && !MBO(bool, pLayer, 0x39C) 
+                && MBO(bool, pLayer, 0x2EC))
+            {
                 auto fmod = gd::FMODAudioEngine::sharedEngine();
 
                 if(fmod->isBackgroundMusicPlaying() && !pLayer->m_hasCompletedLevel) {
@@ -325,13 +339,16 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
                 }
 
                 CCScheduler_updateO(self, deltaTime);
-                bot->updateRender(); // add frame to render
+                bot->updateRender(); // render frame
 
-                bot->timeFromStart += 1.f / static_cast<float>(bot->settings.targetFPS);
+                bot->timeFromStart += (1.f / static_cast<float>(bot->settings.targetFPS));
             }
             else {
                 CCScheduler_updateO(self, deltaTime);
             }
+
+            if(bot->endDelayStart > 0)
+                bot->currentFrame++;
         }
     }
     else {
@@ -343,14 +360,40 @@ void(__thiscall* PlayLayer_levelCompleteO)(gd::PlayLayer*);
 void __fastcall PlayLayer_levelCompleteH(gd::PlayLayer* self, uintptr_t) {
     PlayLayer_levelCompleteO(self);
 
-    GatoBot::sharedState()->resetBasicVariables();
+    GatoBot::sharedState()->resetBasicVariables(false);
 }
 
 void(__thiscall* PlayLayer_onQuitO)(gd::PlayLayer*);
 void __fastcall PlayLayer_onQuitH(gd::PlayLayer* self, uintptr_t) {
     PlayLayer_onQuitO(self);
 
-    GatoBot::sharedState()->resetBasicVariables();
+    GatoBot::sharedState()->resetBasicVariables(true);
+}
+
+void(__thiscall* CCDirector_drawSceneO)(CCDirector*);
+void __fastcall CCDirector_drawSceneH(CCDirector* self, uintptr_t) {
+    auto bot = GatoBot::sharedState();
+
+    if(bot->status == Rendering && bot->settings.fastRender && !bot->gamePaused) {
+        if(!self->isPaused())
+            self->getScheduler()->update(0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        kmGLPushMatrix();
+
+        // draw status label
+        bot->statusLabel->visit();
+
+        kmGLPopMatrix();
+
+        // swap buffers
+        auto glView = self->getOpenGLView();
+
+        if(glView != nullptr)
+            glView->swapBuffers();
+    }
+    else CCDirector_drawSceneO(self);
 }
 
 void loadHooks() {
@@ -361,6 +404,13 @@ void loadHooks() {
         reinterpret_cast<void*>(gd::base + 0x2029c0),
         reinterpret_cast<void*>(&PlayLayer_updateH),
         reinterpret_cast<void**>(&PlayLayer_updateO)
+    );
+
+    // CCDirector::drawScene
+    MH_CreateHook(
+        GetProcAddress(bot->cocosBaseAddr, "?drawScene@CCDirector@cocos2d@@QAEXXZ"),
+        reinterpret_cast<void*>(&CCDirector_drawSceneH),
+        reinterpret_cast<void**>(&CCDirector_drawSceneO)
     );
 
     // GJBaseGameLayer::pushButton
@@ -412,6 +462,9 @@ void loadHooks() {
         reinterpret_cast<void**>(&PlayLayer_destroyPlayerO)
     );
 
+    MH_EnableHook(MH_ALL_HOOKS);
+
+    // - disabled by default
     // CCScheduler::update
     MH_CreateHook(
         bot->updateHookAddr,
@@ -419,77 +472,7 @@ void loadHooks() {
         reinterpret_cast<void**>(&CCScheduler_updateO)
     );
 
-    MH_EnableHook(MH_ALL_HOOKS);
-
     bot->settings.loadedHooks = true;
-}
-
-// geode exports
-#define ASSIGNRET(func, addr) func = reinterpret_cast<decltype(func)>(addr)
-
-extern "C" {
-    GB_DLL void GEODE_PAUSELAYER_CUSTOMSETUP(void* self) {
-        PauseLayer_customSetupH(reinterpret_cast<gd::PauseLayer*>(self), 0);
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_UPDATE(void* self, float dt) {
-        PlayLayer_updateH(reinterpret_cast<gd::PlayLayer*>(self), 0, dt);
-    } 
-
-    GB_DLL bool GEODE_PLAYLAYER_INIT(void* self, void* level) {
-        return PlayLayer_initH(reinterpret_cast<gd::PlayLayer*>(self), 0, reinterpret_cast<gd::GJGameLevel*>(level));
-    }
-
-    GB_DLL void GEODE_GJBASEGAMELAYER_PUSHBUTTON(void* self, int i, bool p2) {
-        GJBaseGameLayer_pushButtonH(reinterpret_cast<gd::GJBaseGameLayer*>(self), 0, i, p2);
-    }
-
-    GB_DLL void GEODE_GJBASEGAMELAYER_RELEASEBUTTON(void* self, int i, bool p2) {
-        GJBaseGameLayer_releaseButtonH(reinterpret_cast<gd::GJBaseGameLayer*>(self), 0, i, p2);
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_RESETLEVEL(void* self) {
-        PlayLayer_resetLevelH(reinterpret_cast<gd::PlayLayer*>(self), 0);
-    }
-
-    GB_DLL void GEODE_CCSCHEDULER_UPDATE(void* self, float dt) {
-        CCScheduler_updateH(reinterpret_cast<CCScheduler*>(self), 0, dt);
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_REMOVELASTCHECKPOINT(void* self) {
-        PlayLayer_removeLastCheckpointH(reinterpret_cast<gd::PlayLayer*>(self), 0);
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_DESTROYPLAYER(void* self, void* player, void* obj) {
-        PlayLayer_destroyPlayerH(reinterpret_cast<gd::PlayLayer*>(self), 0, reinterpret_cast<gd::PlayerObject*>(player), reinterpret_cast<gd::GameObject*>(obj));
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_ONQUIT(void* self) {
-        PlayLayer_onQuitH(reinterpret_cast<gd::PlayLayer*>(self), 0);
-    }
-
-    GB_DLL void GEODE_PLAYLAYER_LEVELCOMPLETE(void* self) {
-        PlayLayer_levelCompleteH(reinterpret_cast<gd::PlayLayer*>(self), 0);
-    }
-}
-
-void GatoBot::setupGeode() {
-    auto bot = GatoBot::sharedState();
-
-    ASSIGNRET(PauseLayer_customSetupO, gd::base + 0x1e4620);
-    ASSIGNRET(PlayLayer_updateO, gd::base + 0x2029c0);
-    ASSIGNRET(PlayLayer_initO, gd::base + 0x1fb780);
-    ASSIGNRET(GJBaseGameLayer_pushButtonO, gd::base + 0x111500);
-    ASSIGNRET(GJBaseGameLayer_releaseButtonO, gd::base + 0x111660);
-    ASSIGNRET(PlayLayer_resetLevelO, gd::base + 0x20bf00);
-    ASSIGNRET(PlayLayer_removeLastCheckpointO, gd::base + 0x20b830);
-    ASSIGNRET(PlayLayer_destroyPlayerO, gd::base + 0x20a1a0);
-    ASSIGNRET(PlayLayer_onQuitO, gd::base + 0x20d810);
-    ASSIGNRET(PlayLayer_levelCompleteO, gd::base + 0x1fd3d0);
-
-    ASSIGNRET(CCScheduler_updateO, bot->updateHookAddr);
-
-    bot->usingGeode = true;
 }
 
 // load
@@ -499,29 +482,27 @@ DWORD WINAPI ModThread(void* hModule) {
         freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
     }*/
 
-    if(!GetModuleHandle("Geode.dll")) {
-        // GatoBot
-        GatoBot::setupBot();
+    // GatoBot
+    GatoBot::setupBot();
 
-        // MinHook
-        MH_Initialize();
+    // MinHook
+    MH_Initialize();
 
-        // PlayLayer::init
-        MH_CreateHook(
-            reinterpret_cast<void*>(gd::base + 0x1fb780),
-            reinterpret_cast<void*>(&PlayLayer_initH),
-            reinterpret_cast<void**>(&PlayLayer_initO)
-        );
+    // PlayLayer::init
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x1fb780),
+        reinterpret_cast<void*>(&PlayLayer_initH),
+        reinterpret_cast<void**>(&PlayLayer_initO)
+    );
 
-        // PauseLayer::customSetup
-        MH_CreateHook(
-            reinterpret_cast<void*>(gd::base + 0x1e4620),
-            reinterpret_cast<void*>(&PauseLayer_customSetupH),
-            reinterpret_cast<void**>(&PauseLayer_customSetupO)
-        );
+    // PauseLayer::customSetup
+    MH_CreateHook(
+        reinterpret_cast<void*>(gd::base + 0x1e4620),
+        reinterpret_cast<void*>(&PauseLayer_customSetupH),
+        reinterpret_cast<void**>(&PauseLayer_customSetupO)
+    );
 
-        MH_EnableHook(MH_ALL_HOOKS);
-    }
+    MH_EnableHook(MH_ALL_HOOKS);
 
     return 0;
 }

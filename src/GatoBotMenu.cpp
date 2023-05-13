@@ -182,6 +182,9 @@ void GatoBotMenu::FLAlert_Clicked(gd::FLAlertLayer* alert, bool btn2) {
         // download ffmpeg
         CCApplication::sharedApplication()->openURL("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip");
     }
+    if(alert->getTag() == 5 && !btn2) {
+        GatoBot::sharedState()->saveCurrentReplay();
+    }
 }
 
 void GatoBotMenu::onRecord(CCObject*) {
@@ -271,8 +274,15 @@ void GatoBotMenu::onRender(CCObject*) {
 void GatoBotMenu::onSaveReplay(CCObject*) {
     auto bot = GatoBot::sharedState();
 
-    if(bot->levelFrames.size() > 0) 
-        bot->saveCurrentReplay();
+    if(bot->levelFrames.size() > 0) {
+        if(bot->hasMissingFrames()) {
+            auto alert = gd::FLAlertLayer::create(this, "Warning", "Continue", "Cancel", 400, "<cy>Current replay appears to have missing frames.</c>\nSave anyway?");
+            alert->setTag(5);
+            alert->m_pTargetLayer = (CCNode*)this;
+            alert->show();
+        }
+        else bot->saveCurrentReplay();
+    }
 
     else {
         auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, "There are no frames to save!");

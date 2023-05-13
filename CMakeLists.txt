@@ -3,8 +3,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(GatoBot)
 
-set(MAINPATH "C:/Programming/gdmods/GatoBot")
-
 # src files
 file(GLOB_RECURSE SOURCE_FILES 
     src/*.cpp 
@@ -13,6 +11,7 @@ file(GLOB_RECURSE SOURCE_FILES
     libraries/nativefiledialog/src/nfd_common.c 
     libraries/nativefiledialog/src/nfd_win.cpp 
 )
+
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
 set(CMAKE_SIZEOF_VOID_P 4)
@@ -24,18 +23,25 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL Clang)
   add_definitions("--target=i386-pc-windows-msvc")
 endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+set(PROJECTHEADERS 
   libraries/
-  libraries/minhook/include
-  libraries/gd.h/include
-  libraries/gd.h/
   libraries/nativefiledialog/src
   libraries/nativefiledialog/src/include
+  libraries/gd.h/include
+  libraries/gd.h/
 )
 
+list(APPEND PROJECTHEADERS libraries/minhook/include)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECTHEADERS})
+
 add_subdirectory(libraries/minhook)
-add_subdirectory(libraries/cocos-headers)
 
 find_library(OPENGL32_LIBRARY_PATH opengl32)
 
-target_link_libraries(${PROJECT_NAME} minhook cocos2d opengl32 ${MAINPATH}/libraries/glew32.lib)
+set(MOD_LIBS minhook opengl32 ${CMAKE_SOURCE_DIR}/libraries/glew32.lib)
+
+add_subdirectory(libraries/cocos-headers)
+list(APPEND MOD_LIBS cocos2d)
+
+target_link_libraries(${PROJECT_NAME} ${MOD_LIBS})

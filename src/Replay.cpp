@@ -1,6 +1,8 @@
 #include "GatoBot.hpp"
+#include "ConvertTools.hpp"
 
 #include <nfd.h>
+#include <iterator>
 
 using namespace nlohmann; // json
 
@@ -33,7 +35,7 @@ void GatoBot::toggleReplay(int FPS, float speed) {
 
             settings.targetSPF = newSPF;
             settings.targetSpeed = speed;
-            settings.targetFPS = FPS;
+            targetFPS = FPS;
 
             dir->setAnimationInterval(newSPF);
             dir->getScheduler()->setTimeScale(speed);
@@ -71,30 +73,35 @@ std::vector<std::string> _splitString(std::string stringData, char* delimiter) {
 void GatoBot::loadNewReplay() {
     // get file path
     nfdchar_t *outPath = NULL;
-    nfdresult_t res = NFD_OpenDialog({"gatobot,mhr.json"}, nullptr, &outPath);
+    nfdresult_t res = NFD_OpenDialog({"gatobot,mhr,mhr.json"}, nullptr, &outPath);
 
     if(res != NFD_OKAY) {
         free(outPath);
         return;
     } 
 
-    // use ifstream instead
-    std::string data;
-    std::ifstream file(outPath);
-    std::string line;
-
-    while(getline(file, line)) {
-        data.append(line);
-    }
+    // replay type
+    #define SetReplayT(exte, enumt) if(strstr(outPath, exte) != NULL) rType = ReplayType::##enumt;
 
     ReplayType rType = ReplayType::GatoBotR;
 
-    // MH replay
-    if(strstr(outPath, "mhr.json") != NULL) rType = ReplayType::MegaHack;
+    SetReplayT(".mhr", MegaHack);
+    SetReplayT(".mhr.json", MegaHackJson);
+
+    // read file
+    std::ios_base::openmode openMode = std::ios_base::in;
+
+    // MegaHack replays are binary
+    if(rType == MegaHack) openMode = std::ios_base::binary;
+        
+    std::ifstream file(outPath, openMode);
+    std::vector<char> data(std::istreambuf_iterator<char>(file), {});
+
+    file.close();
 
     free(outPath);
 
-    if(data.length() > 0) {
+    if(data.size() > 0) {
         auto ret = loadReplay(data, rType);
 
         if(ret == Success) {
@@ -103,7 +110,7 @@ void GatoBot::loadNewReplay() {
             alert->show();
         }
         if(ret == MissingFrames) {
-            auto alert = gd::FLAlertLayer::create(nullptr, "Warning", "OK", nullptr, 360, "This replay seems to have missing frames.\n<cy>Make sure the Mega Hack replay is recorded with the \"Frame Fixes\" accuracy.</c>");
+            auto alert = gd::FLAlertLayer::create(nullptr, "Warning", "OK", nullptr, 400, "This replay seems to have missing frames.\n<cy>It is recommended that Mega Hack replays are recorded with the \"Frame Fixes\" accuracy.</c>\n<cg>The replay will work, but</c> <cr>MAY NOT</c> <cg>be as accurate!</c>");
             alert->m_pTargetLayer = (CCNode*)botMenu;
             alert->show();
         }
@@ -122,8 +129,11 @@ void GatoBot::loadNewReplay() {
     }
 }
 
-ReplayLoadStatus GatoBot::loadReplay(std::string replayDataCompressed, ReplayType rType = ReplayType::GatoBotR) {
+ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayType rType = ReplayType::GatoBotR) {
     ReplayLoadStatus retCode = Success;
+
+    // to str
+    std::string replayDataCompressed = std::string(replayDataVec.begin(), replayDataVec.end());
 
     // remove currently loaded frames
     levelFrames.clear();
@@ -157,8 +167,62 @@ ReplayLoadStatus GatoBot::loadReplay(std::string replayDataCompressed, ReplayTyp
             nextIndex = replayData.find(";", index);
         }
     }
-    // parse MegaHack replay
+
+    // parse MegaHack (binary) replay
     if(rType == ReplayType::MegaHack) {
+        #define Chunk(n1, n2) n1, n1 + n2
+
+        // basic
+        int metaSize = replayDataVec[0x8];
+        int eventSize = replayDataVec[0xC + metaSize + 0x8];
+        int eventCount = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0xC + metaSize + 0xC, 4)));
+
+        // get last frame
+        int lastFrame = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0xC + metaSize + 0x10 + eventSize * (eventCount - 1) + 0x4, sizeof(int))));
+
+        // allocate
+        levelFrames.resize(lastFrame + 1);
+
+        // events
+        for(int i = 0; i < eventCount; i++) {
+            std::vector<char> event(Chunk(replayDataVec.begin() + 0xC + metaSize + 0x10 + eventSize * i, eventSize));
+
+            // frame
+            int curFrame = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(event.begin() + 0x4, sizeof(int))));
+
+            // other vars
+            int eventType = (int)event[0];
+            bool btnDown = (int)event[0x2] == 1;
+            bool player2 = (int)event[0x3] == 1;
+
+            // position
+            CCPoint pos = {
+                GBConvertTools::MH_HexToFloat(std::vector<char>(Chunk(event.begin() + 0x8, sizeof(float)))),
+                GBConvertTools::MH_HexToFloat(std::vector<char>(Chunk(event.begin() + 0xC, sizeof(float))))
+            };
+
+            // rotation and acceleration
+            float rotation = GBConvertTools::MH_HexToFloat(std::vector<char>(Chunk(event.begin() + 0x10, sizeof(float))));
+            double acceleration = GBConvertTools::MH_HexToDouble(std::vector<char>(Chunk(event.begin() + 0x18, sizeof(double))));
+
+            // convert to GatoBot replay
+            PlayerData* pData = player2 ? &levelFrames[curFrame].player2 : &levelFrames[curFrame].player1;
+
+            // button
+            if(eventType == 2) // click
+                pData->action = btnDown ? ButtonType::Pressed : ButtonType::Released;
+
+            pData->position = pos;
+            pData->yVel = acceleration;
+            pData->rotation = rotation;
+            pData->isSet = true;
+
+            levelFrames[curFrame].frame = curFrame;
+        }
+    }
+
+    // parse MegaHack json replay
+    if(rType == ReplayType::MegaHackJson) {
         json data = json::parse(replayData);
 
         auto events = data["events"];
@@ -174,41 +238,22 @@ ReplayLoadStatus GatoBot::loadReplay(std::string replayDataCompressed, ReplayTyp
             const auto item = it.value();
             const int curFrame = item["frame"];
 
-            if(!item.contains("p2")) {
-                auto pData = PlayerData::fromJson(item);
+            if(!item.contains("p2"))
+                levelFrames[curFrame].player1 = PlayerData::fromJson(item, levelFrames[curFrame].player1);
 
-                const auto oldData = levelFrames[curFrame].player1;
-
-                if(oldData.action != None) 
-                    pData.action = oldData.action;
-
-                levelFrames[curFrame].player1 = pData;
-            }
-            else {
-                auto pData = PlayerData::fromJson(item);
-
-                const auto oldData = levelFrames[curFrame].player2;
-
-                if(oldData.action != None) 
-                    pData.action = oldData.action;
-
-                levelFrames[curFrame].player2 = pData;
-            }
+            else
+                levelFrames[curFrame].player2 = PlayerData::fromJson(item, levelFrames[curFrame].player2);
 
             levelFrames[curFrame].frame = curFrame;
         }
-
-        // warning if not frame fixes accuracy
-        for(size_t i = 0; i < levelFrames.size(); i++) {
-            if(levelFrames[i].frame != i) {
-                retCode = MissingFrames;
-                break;
-            }
-        }
     }
 
-    // sort clicks if some shit went wrong and they got shuffled
-    std::sort(levelFrames.begin(), levelFrames.end(), compareFramesForPrac);
+    // missing frames
+    if(hasMissingFrames()) retCode = MissingFrames;
+
+    // sort frames if some shit went wrong and they got shuffled
+    if(retCode != MissingFrames)
+        std::sort(levelFrames.begin(), levelFrames.end(), compareFramesForPrac);
 
     return retCode;
 }
@@ -242,6 +287,10 @@ LevelFrameData GatoBot::frameFromString(std::string frameData) {
         );
         pData.yVel = std::stof(pDataVec[3]);
 
+        // old macros don't store rotation
+        if(pDataVec.size() > 4)
+            pData.rotation = std::stof(pDataVec[4]);
+
         // set data
         if(!player2) frame.player1 = pData;
         else frame.player2 = pData;
@@ -253,11 +302,16 @@ LevelFrameData GatoBot::frameFromString(std::string frameData) {
 }
 
 void PlayerData::applyToPlayer(gd::PlayerObject* player) {
-    MBO(CCPoint, player, 0x67C) = position;
-    MBO(double, player, 0x628) = yVel;
+    if(isSet) {
+        MBO(CCPoint, player, 0x67C) = position;
+        MBO(double, player, 0x628) = yVel;
+
+        if(rotation != -1)
+            player->setRotation(rotation);
+    }
 }
 
-PlayerData PlayerData::fromJson(json jsonData) {
+PlayerData PlayerData::fromJson(json jsonData, PlayerData original) {
     PlayerData data;
 
     data.position = CCPoint(
@@ -269,6 +323,22 @@ PlayerData PlayerData::fromJson(json jsonData) {
     if(jsonData.contains("down")) {
         data.action = jsonData["down"] ? Pressed : Released;
     }
+    else data.action = original.action;
+
+    data.isSet = true;
 
     return data;
+}
+
+bool GatoBot::hasMissingFrames() {
+    bool contains = false;
+
+    for(auto& f : levelFrames) {
+        if(f.frame == -1) {
+            contains = true;
+            break;
+        }
+    }
+
+    return contains;
 }
