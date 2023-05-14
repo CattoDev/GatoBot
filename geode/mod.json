@@ -1,7 +1,7 @@
 {
-	"geode": "1.0.0-beta.10",
+	"geode": "1.0.0-beta.16",
 	"version": "v1.3.0",
-	"id": "cattodev.gatobotgeode",
+	"id": "cattodev.gatobot",
 	"name": "GatoBot",
 	"developer": "CattoDev",
 	"description": "A Geometry Dash bot with an internal renderer.",

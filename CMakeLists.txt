@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(GatoBot VERSION 1.0.0)
 
 # build geode version
-set(GB_BUILD_GEODE ON)
+set(GB_BUILD_GEODE OFF)
 
 # src files
 file(GLOB SOURCE_FILES 

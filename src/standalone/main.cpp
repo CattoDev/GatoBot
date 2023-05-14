@@ -3,9 +3,9 @@
 // load
 DWORD WINAPI ModThread(void* hModule) {
     // debug console
-    if(AllocConsole()) {
+    /*if(AllocConsole()) {
         freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-    }
+    }*/
 
     // MinHook
     MH_Initialize();
