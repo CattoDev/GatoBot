@@ -185,7 +185,16 @@ void renderingThread(GatoBot* bot) {
     cmd.frameHeight = frameH;
     cmd.fps = bot->settings.targetFPS;
 
+    std::string songPath;
     if(bot->settings.includeLevelSong) {
+        songPath = levelData->getAudioFileName();
+
+        if(songPath.find("\\") == songPath.npos) {
+            songPath = CCFileUtils::sharedFileUtils()->fullPathForFilename(songPath.c_str(), true);
+        }
+    }
+
+    if(bot->settings.includeLevelSong && !songPath.empty() && std::filesystem::exists(songPath)) {
         cmd.tempPath = std::filesystem::temp_directory_path().string() + std::string("gatobottemp.mp4");
         cmd.path = bot->settings.videoPath;
     }
@@ -238,30 +247,22 @@ void renderingThread(GatoBot* bot) {
         return;
     }
 
-    if(bot->settings.includeLevelSong) {
-        auto songPath = levelData->getAudioFileName();
+    if(bot->settings.includeLevelSong && !songPath.empty() && std::filesystem::exists(songPath)) {
+        cmd.songPath = songPath;
+        cmd.songOffset = bot->currentMusicOffset;
+        cmd.time = bot->timeFromStart;
 
-        if(songPath.find("\\") == songPath.npos) {
-            songPath = CCFileUtils::sharedFileUtils()->fullPathForFilename(songPath.c_str(), true);
-        }
+        auto songCmd = cmd.getSongCmdStr();
 
-        if (!songPath.empty() && std::filesystem::exists(songPath)) {
-            cmd.songPath = songPath;
-            cmd.songOffset = bot->currentMusicOffset;
-            cmd.time = bot->timeFromStart;
+        logRender(songCmd);
 
-            auto songCmd = cmd.getSongCmdStr();
+        int retCode = subprocess::Popen(songCmd, creationFlag).close();
 
-            logRender(songCmd);
+        std::filesystem::remove(cmd.tempPath); // delete temp
 
-            int retCode = subprocess::Popen(songCmd, creationFlag).close();
-
-            std::filesystem::remove(cmd.tempPath); // delete temp
-
-            if (retCode) {
-                logRender("Adding audio failed" << "\n");
-                return;
-            }
+        if (retCode) {
+            logRender("Adding audio failed" << "\n");
+            return;
         }
     }
 
@@ -275,6 +276,11 @@ void renderingThread(GatoBot* bot) {
         SHOpenFolderAndSelectItems(path, 0, 0, 0);
         ILFree(path);
     }
+
+    // toggle anticheat back on
+    bot->patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0xE8, 0x3B, 0xAD, 0x00, 0x00});
+
+    bot->botStatusChanged();
 }
 
 void GatoBot::toggleRender() {
@@ -343,7 +349,7 @@ void GatoBot::toggleRender() {
         patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0x90, 0x90, 0x90, 0x90, 0x90});
 
         toggleGameFPSCap(false);
-        toggleHook(SchedulerUpdate, true);
+        botStatusChanged();
 
         // start rendering thread
         std::thread(renderingThread, this).detach();
@@ -354,15 +360,12 @@ void GatoBot::toggleRender() {
         renderingTexture->release();
         
         toggleGameFPSCap(true);
-        toggleHook(SchedulerUpdate, false);
-
-        patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0xE8, 0x3B, 0xAD, 0x00, 0x00});
 
         CCDirector::sharedDirector()->setAnimationInterval(lastSPF);
 
         reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x20d3c0)(gd::PlayLayer::get(), false);
     }
-
+;
     updateStatusLabel();
 
     endDelayStart = 0;
@@ -373,11 +376,6 @@ void GatoBot::toggleRenderDelayed() {
         toggleRender();
         return;
     }
-
-    /*auto func = CCCallFunc::create(this, callfunc_selector(GatoBot::toggleRender));
-    auto seq = CCSequence::create(CCDelayTime::create(time), func, nullptr);
-
-    runAction(seq);*/
 
     if(endDelayStart == 0)
         endDelayStart = timeFromStart;

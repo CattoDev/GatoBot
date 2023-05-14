@@ -1,18 +1,22 @@
+#ifndef GB_INCLUDES_H
+#define GB_INCLUDES_H
 #include <Windows.h>
 
+#ifndef GB_GEODE
 #include <MinHook.h>
 
-#ifndef GB_GEODE
 #include <cocos2d.h>
 using namespace cocos2d;
+
+#else
+#include <Geode/Geode.hpp>
+
+using namespace geode::prelude;
 #endif
 
 #include <gd.h>
 
 #include <subprocess.hpp>
-
-#undef snprintf
-#include <json.hpp>
 
 // std
 #include <iostream>
@@ -22,10 +26,17 @@ using namespace cocos2d;
 #include <mutex>
 #include <fstream>
 
+#ifdef GB_GEODE
+#undef json
+#endif
+
+#undef snprintf
+#include <json_single.hpp>
+
 /*
     GD's version of std::string
 */
-struct GDH_DLL gdstring {
+struct gdstring {
     union
     {
         char inline_data[16];
@@ -67,3 +78,5 @@ struct GDH_DLL gdstring {
 
     operator std::string() const { return std::string(sv()); }
 };
+
+#endif

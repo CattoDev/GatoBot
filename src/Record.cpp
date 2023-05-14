@@ -34,6 +34,7 @@ void GatoBot::toggleRecord(int FPS, float speed) {
         status = Recording;
     }
 
+    botStatusChanged();
     updateStatusLabel();
 }
 

@@ -10,7 +10,7 @@ enum ButtonType { None, Pressed, Released };
 enum BotStatus { Disabled, Recording, Replaying, Rendering };
 enum ReplayType { GatoBotR, MegaHack, MegaHackJson };
 enum ReplayLoadStatus { Success, MissingFrames, Failed };
-enum ToggleHookType { SchedulerUpdate, NodeVisit };
+enum ToggleHookType { SchedulerUpdate, DrawScene, PlayLayerUpdate };
 
 struct PlayerData {
     cocos2d::CCPoint position = CCPointZero;
@@ -75,6 +75,11 @@ struct GatoBotSettings {
     bool loadedHooks = false;
 };
 
+struct ReplayLoadResponse {
+    ReplayLoadStatus status;
+    int fps = -1;
+};
+
 class GBLoadingCircle;
 class GatoBotMenu;
 
@@ -129,7 +134,8 @@ public:
 
 public:
     static GatoBot* sharedState();
-    static void setupBot();
+    void setupBot();
+    static void setupBasicHooks();
     void preset();
 
     bool FFmpegInstalled();
@@ -140,7 +146,7 @@ public:
     void handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
 
     void saveReplay(std::string& filepath);
-    ReplayLoadStatus loadReplay(std::vector<char>&, ReplayType);
+    ReplayLoadResponse loadReplay(std::vector<char>&, ReplayType);
     void updateRender();
     void updateStatusLabel();
     LevelFrameData frameFromString(std::string data);
@@ -159,6 +165,7 @@ public:
     void toggleReplay(int a = 0, float b = 0);
     void toggleRender();
     void toggleRenderDelayed();
+    void botStatusChanged();
 
     void toggleGameFPSCap(bool);
     void toggleHook(ToggleHookType, bool);

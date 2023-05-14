@@ -4,14 +4,12 @@
 #include <nfd.h>
 #include <iterator>
 
-using namespace nlohmann; // json
-
 // for sorting
 bool compareFramesForPrac(const LevelFrameData& a, const LevelFrameData& b) {
     return a.frame < b.frame;
 }
 
-bool compareMHevents(const json& a, const json& b) {
+bool compareMHevents(const nlohmann::json& a, const nlohmann::json& b) {
     return a["frame"] < b["frame"];
 }
 
@@ -44,30 +42,8 @@ void GatoBot::toggleReplay(int FPS, float speed) {
         status = Replaying;
     }
 
+    botStatusChanged();
     updateStatusLabel();
-}
-
-// split
-std::vector<std::string> _splitString(std::string stringData, char* delimiter) {
-    size_t index = 0;
-    size_t nextIndex = stringData.find(delimiter);
-    std::string subStr;
-
-    std::vector<std::string> dataVec;
-
-    while(true) {
-        subStr = stringData.substr(index, nextIndex - index);
-
-        dataVec.push_back(subStr);
-
-        if(nextIndex == stringData.npos) break;
-
-        // continue
-        index = nextIndex + 1;
-        nextIndex = stringData.find(delimiter, index);
-    }
-
-    return dataVec;
 }
 
 void GatoBot::loadNewReplay() {
@@ -102,35 +78,48 @@ void GatoBot::loadNewReplay() {
     free(outPath);
 
     if(data.size() > 0) {
-        auto ret = loadReplay(data, rType);
+        auto replayResp = loadReplay(data, rType);
 
-        if(ret == Success) {
-            auto alert = gd::FLAlertLayer::create(nullptr, "Success", "OK", nullptr, "Replay loaded!");
-            alert->m_pTargetLayer = (CCNode*)botMenu;
-            alert->show();
+        const char* alertTitle = "Success";
+        std::stringstream alertStr;
+
+        switch(replayResp.status) {
+            case MissingFrames:
+                alertTitle = "Warning";
+                alertStr << "This replay seems to have missing frames.\n<cy>It is recommended that Mega Hack replays are recorded with the \"Frame Fixes\" accuracy.</c>\n<cg>The replay will work, but</c> <cr>MAY NOT</c> <cg>be as accurate!</c>";
+                break;
+
+            case Failed:
+                alertTitle = "Error";
+                alertStr << "Failed to load replay!";
+                break;
+
+            default:
+                alertStr << "Replay loaded!";
+                break;
+        };
+
+        // fps
+        if(replayResp.fps > 0) {
+            alertStr << "\nFPS: ";
+            alertStr << "<cy>" << replayResp.fps << "</c>";
         }
-        if(ret == MissingFrames) {
-            auto alert = gd::FLAlertLayer::create(nullptr, "Warning", "OK", nullptr, 400, "This replay seems to have missing frames.\n<cy>It is recommended that Mega Hack replays are recorded with the \"Frame Fixes\" accuracy.</c>\n<cg>The replay will work, but</c> <cr>MAY NOT</c> <cg>be as accurate!</c>");
-            alert->m_pTargetLayer = (CCNode*)botMenu;
-            alert->show();
-        }
-        if(ret == Failed) {
-            // error
-            auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, "Failed to load replay!");
-            alert->m_pTargetLayer = (CCNode*)botMenu;
-            alert->show();
-        }
+
+        // alert
+        auto alert = gd::FLAlertLayer::create(nullptr, alertTitle, "OK", nullptr, 400, alertStr.str());
+        alert->m_pTargetLayer = (CCNode*)botMenu;
+        alert->show();
     }
     else {
         // error
-        auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, "Failed to load replay!");
+        auto alert = gd::FLAlertLayer::create(nullptr, "Error", "OK", nullptr, 400, "Failed to load replay!");
         alert->m_pTargetLayer = (CCNode*)botMenu;
         alert->show();
     }
 }
 
-ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayType rType = ReplayType::GatoBotR) {
-    ReplayLoadStatus retCode = Success;
+ReplayLoadResponse GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayType rType = ReplayType::GatoBotR) {
+    ReplayLoadResponse resp;
 
     // to str
     std::string replayDataCompressed = std::string(replayDataVec.begin(), replayDataVec.end());
@@ -173,8 +162,8 @@ ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayTyp
         #define Chunk(n1, n2) n1, n1 + n2
 
         // basic
-        int metaSize = replayDataVec[0x8];
-        int eventSize = replayDataVec[0xC + metaSize + 0x8];
+        int metaSize = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0x8, sizeof(int))));
+        int eventSize = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0xC + metaSize + 0x8, sizeof(int))));
         int eventCount = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0xC + metaSize + 0xC, 4)));
 
         // get last frame
@@ -219,11 +208,14 @@ ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayTyp
 
             levelFrames[curFrame].frame = curFrame;
         }
+
+        // fps
+        resp.fps = GBConvertTools::MH_HexToInt(std::vector<unsigned char>(Chunk(replayDataVec.begin() + 0xC, sizeof(int))));
     }
 
     // parse MegaHack json replay
     if(rType == ReplayType::MegaHackJson) {
-        json data = json::parse(replayData);
+        auto data = nlohmann::json::parse(replayData);
 
         auto events = data["events"];
 
@@ -234,7 +226,7 @@ ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayTyp
         levelFrames.resize(events.back()["frame"] + 1);
 
         // apply to frames
-        for (json::iterator it = events.begin(); it != events.end(); it++) {
+        for (nlohmann::json::iterator it = events.begin(); it != events.end(); it++) {
             const auto item = it.value();
             const int curFrame = item["frame"];
 
@@ -246,34 +238,42 @@ ReplayLoadStatus GatoBot::loadReplay(std::vector<char>& replayDataVec, ReplayTyp
 
             levelFrames[curFrame].frame = curFrame;
         }
+
+        // fps
+        if(data.contains("meta")) {
+            auto meta = data["meta"];
+
+            if(meta.contains("fps"))
+                resp.fps = meta["fps"];
+        }
     }
 
     // missing frames
-    if(hasMissingFrames()) retCode = MissingFrames;
+    if(hasMissingFrames()) resp.status = MissingFrames;
 
     // sort frames if some shit went wrong and they got shuffled
-    if(retCode != MissingFrames)
+    if(resp.status != MissingFrames)
         std::sort(levelFrames.begin(), levelFrames.end(), compareFramesForPrac);
 
-    return retCode;
+    return resp;
 }
 
 LevelFrameData GatoBot::frameFromString(std::string frameData) {
     LevelFrameData frame;
 
-    auto frameDataVec = _splitString(frameData, "_");
+    auto frameDataVec = GBConvertTools::_splitString(frameData, '_');
 
     frame.frame = std::stoi(frameDataVec[0]);
     
     // parse players
-    auto playerDataVec = _splitString(frameDataVec[1], "~");
+    auto playerDataVec = GBConvertTools::_splitString(frameDataVec[1], '~');
 
     bool player2 = false;
     for(auto playerStr : playerDataVec) {
         PlayerData pData;
 
         // parse player data
-        auto pDataVec = _splitString(playerStr, ",");
+        auto pDataVec = GBConvertTools::_splitString(playerStr, ',');
 
         int btnAct = std::stoi(pDataVec[0]);
 
@@ -311,7 +311,7 @@ void PlayerData::applyToPlayer(gd::PlayerObject* player) {
     }
 }
 
-PlayerData PlayerData::fromJson(json jsonData, PlayerData original) {
+PlayerData PlayerData::fromJson(nlohmann::json jsonData, PlayerData original) {
     PlayerData data;
 
     data.position = CCPoint(

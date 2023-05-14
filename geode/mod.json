@@ -1,0 +1,13 @@
+{
+	"geode": "1.0.0-beta.10",
+	"version": "v1.3.0",
+	"id": "cattodev.gatobotgeode",
+	"name": "GatoBot",
+	"developer": "CattoDev",
+	"description": "A Geometry Dash bot with an internal renderer.",
+	"repository": "https://github.com/CattoDev/GatoBot",
+	"issues": {
+		"info": "If you wish to report a bug or a crash, you can post an issue on the GatoBot repo!",
+		"url": "https://github.com/CattoDev/GatoBot/issues"
+	}
+}

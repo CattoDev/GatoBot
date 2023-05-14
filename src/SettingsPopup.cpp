@@ -239,7 +239,7 @@ bool SettingsPopup::init() {
     m_pLayer->addChild(fpsLabel, 2);
 
     // delay input
-    delayInputBG = createTextInput("seconds", 2, 50, 30, "012345679.", m_pButtonMenu->convertToWorldSpace(toggles[6]->getPosition()) + CCPoint(20, -35), .3);
+    delayInputBG = createTextInput("seconds", 8, 50, 30, "012345679.", m_pButtonMenu->convertToWorldSpace(toggles[6]->getPosition()) + CCPoint(20, -35), .3);
     delayInput = textInputs.back();
 
     delayInputBG->setVisible(false);

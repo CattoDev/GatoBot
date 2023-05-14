@@ -1,4 +1,5 @@
 #include "GatoBot.hpp"
+#include "hooks.hpp"
 
 GatoBot* instance = nullptr;
 
@@ -22,7 +23,6 @@ GatoBot* GatoBot::sharedState() {
         instance->presetSettings = false;
 
         instance->targetFPS = instance->getCurrentFPS();
-
         instance->levelFrames.reserve(99999);
     }
 
@@ -80,12 +80,17 @@ float GatoBot::getTimeForXPos(gd::PlayLayer* pLayer) {
     return ret;
 }
 
-// https://github.com/matcool/small-gd-mods/blob/main/src/menu-shaders.cpp#L19
 void GatoBot::patchMemory(void* patchLoc, std::vector<uint8_t> bytes) {
+    #ifdef GB_GEODE
+    Mod::get()->patch(patchLoc, bytes);
+    #else
+    
+    // https://github.com/matcool/small-gd-mods/blob/main/src/menu-shaders.cpp#L19
     DWORD old_prot;
     VirtualProtect(patchLoc, bytes.size(), PAGE_EXECUTE_READWRITE, &old_prot);
     memcpy(patchLoc, bytes.data(), bytes.size());
     VirtualProtect(patchLoc, bytes.size(), old_prot, &old_prot);
+    #endif
 }
 
 #define SHOWSTATUS(cstatus, format, ...) if(status == cstatus) snprintf(buf, 100, format, #cstatus, __VA_ARGS__) 
@@ -146,18 +151,22 @@ void GatoBot::resetBasicVariables(bool force) {
 
     if(status == Recording) toggleRecord();
     if(status == Replaying) toggleReplay();
+
+    // speedhack anticheat
+    patchMemory(reinterpret_cast<void*>(gd::base + 0x202ad0), {0xE8, 0x3B, 0xAD, 0x00, 0x00});
+
+    if(force)
+        botStatusChanged();
 }
 
 void GatoBot::setupBot() {
-    auto self = GatoBot::sharedState();
-
     HMODULE cocosBase = GetModuleHandleA("libcocos2d.dll");
     HMODULE fmodBase = GetModuleHandleA("fmod.dll");
 
-    self->cocosBaseAddr = cocosBase;
+    cocosBaseAddr = cocosBase;
 
     // hook addresses
-    self->updateHookAddr = GetProcAddress(cocosBase, "?update@CCScheduler@cocos2d@@UAEXM@Z");
+    updateHookAddr = GetProcAddress(cocosBase, "?update@CCScheduler@cocos2d@@UAEXM@Z");
 
     // declare inline funcs
     GatoBot::ZipUtils_compressString = reinterpret_cast<decltype(GatoBot::ZipUtils_compressString)>(
@@ -181,12 +190,53 @@ void GatoBot::setupBot() {
     );
 
     GatoBot::PauseLayer_onRetry = reinterpret_cast<decltype(GatoBot::PauseLayer_onRetry)>(gd::base + 0x1E6040);
+
+    // hooks
+    setupBasicHooks();
+
+    botStatusChanged();
 }
 
 void GatoBot::toggleHook(ToggleHookType hType, bool toggle) {
+    #ifdef GB_GEODE
+    auto mod = Mod::get();
+
+    for(auto& h : mod->getHooks()) {
+        if(
+           hType == SchedulerUpdate && !h->getDisplayName().compare("cocos2d::CCScheduler::update")
+        || hType == DrawScene && !h->getDisplayName().compare("cocos2d::CCDirector::drawScene")
+        || hType == PlayLayerUpdate && !h->getDisplayName().compare("PlayLayer::update")
+        ) {
+            if(toggle) mod->enableHook(h);
+            else mod->disableHook(h);
+        }
+    }
+
+    #else
+
+    // shit code that I won't even bother refactoring
     switch(hType) {
         case SchedulerUpdate:
             if(toggle) MH_EnableHook(updateHookAddr);
+            else MH_DisableHook(updateHookAddr);
             break;
-    }
+
+        case DrawScene:
+            if(toggle) MH_EnableHook(GetProcAddress(cocosBaseAddr, "?drawScene@CCDirector@cocos2d@@QAEXXZ"));
+            else MH_DisableHook(GetProcAddress(cocosBaseAddr, "?drawScene@CCDirector@cocos2d@@QAEXXZ"));
+            break;
+
+        case PlayLayerUpdate:
+            if(toggle) MH_EnableHook(reinterpret_cast<void*>(gd::base + 0x2029c0));
+            else MH_DisableHook(reinterpret_cast<void*>(gd::base + 0x2029c0));
+            break;
+    };
+
+    #endif
+}
+
+void GatoBot::botStatusChanged() {
+    toggleHook(SchedulerUpdate, status == Rendering);
+    toggleHook(DrawScene, status == Rendering);
+    toggleHook(PlayLayerUpdate, status != None);
 }

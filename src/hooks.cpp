@@ -1,9 +1,29 @@
+#include "hooks.hpp"
+
 #include "GatoBot.hpp"
 #include "GatoBotMenu.hpp"
 #include "LoadingCircle.hpp"
 
-bool(__thiscall* PlayLayer_initO)(gd::PlayLayer*, gd::GJGameLevel*);
-bool __fastcall PlayLayer_initH(gd::PlayLayer* self, uintptr_t, gd::GJGameLevel* level) {
+/*
+    MACROS
+*/
+#undef HOOKDEF
+#define HOOKDEF(returntype, funcname, selftype, ...) \
+returntype __fastcall GBHooks::funcname##H(selftype self, uintptr_t, ##__VA_ARGS__)
+
+// replace MH_CreateHook function if using geode lol
+#ifdef GB_GEODE
+#define GB_CreateHook(addr, hook, orig) \
+    orig = reinterpret_cast<decltype(orig)>(addr)
+#else
+#define GB_CreateHook(addr, hook, orig) \
+    MH_CreateHook(reinterpret_cast<void*>(addr), reinterpret_cast<void*>(&hook), reinterpret_cast<void**>(&orig))
+#endif
+
+/*
+    HOOKS
+*/
+HOOKDEF(bool, PlayLayer_init, gd::PlayLayer*, gd::GJGameLevel* level) {
     if(!PlayLayer_initO(self, level)) return false;
 
     auto bot = GatoBot::sharedState();
@@ -34,8 +54,31 @@ bool __fastcall PlayLayer_initH(gd::PlayLayer* self, uintptr_t, gd::GJGameLevel*
     return true;
 }
 
-void(__thiscall* PlayLayer_updateO)(gd::PlayLayer*, float);
-void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
+HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*) {
+    PauseLayer_customSetupO(self);
+
+    auto bot = GatoBot::sharedState();
+
+    if(!bot->settings.loadedHooks)
+        GBHooks::mem_init();
+
+    bot->currentPauseLayer = self;
+    bot->gamePaused = true;
+
+    auto winSize = CCDirector::sharedDirector()->getWinSize();
+
+    auto menu = CCMenu::create();
+
+    auto gatoBtnSpr = gd::ButtonSprite::create("GB", 0, false, "goldFont.fnt", "GJ_button_06.png", 40, 1);
+    auto gatoBtn = gd::CCMenuItemSpriteExtra::create(gatoBtnSpr, self, menu_selector(GatoBotMenu::onOpen));
+    menu->addChild(gatoBtn);
+
+    gatoBtn->setPosition(winSize.width / 2 - 50, winSize.height / 2 - 40);
+
+    self->addChild(menu, 100);
+}
+
+HOOKDEF(void, PlayLayer_update, gd::PlayLayer*, float dt) {
     auto bot = GatoBot::sharedState();
 
     bot->gamePaused = MBO(bool, self, 0x52F);
@@ -138,56 +181,19 @@ void __fastcall PlayLayer_updateH(gd::PlayLayer* self, uintptr_t, float dt) {
     PlayLayer_updateO(self, dt);
 }
 
-void loadHooks();
-// pause layer
-void(__thiscall* PauseLayer_customSetupO)(gd::PauseLayer*);
-void __fastcall PauseLayer_customSetupH(gd::PauseLayer* self, uintptr_t) {
-    PauseLayer_customSetupO(self);
-
-    auto bot = GatoBot::sharedState();
-
-    if(!bot->settings.loadedHooks)
-        loadHooks();
-
-    bot->currentPauseLayer = self;
-    bot->gamePaused = true;
-
-    auto winSize = CCDirector::sharedDirector()->getWinSize();
-
-    auto menu = CCMenu::create();
-
-    auto gatoBtnSpr = gd::ButtonSprite::create("GB", 0, false, "goldFont.fnt", "GJ_button_06.png", 40, 1);
-    auto gatoBtn = gd::CCMenuItemSpriteExtra::create(gatoBtnSpr, self, menu_selector(GatoBotMenu::onOpen));
-    menu->addChild(gatoBtn);
-
-    gatoBtn->setPosition(winSize.width / 2 - 50, winSize.height / 2 - 40);
-
-    self->addChild(menu, 100);
-}
-
-void(__thiscall* GJBaseGameLayer_pushButtonO)(gd::GJBaseGameLayer*, int, bool);
-void __fastcall GJBaseGameLayer_pushButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
+HOOKDEF(void, GJBaseGameLayer_pushButton, gd::GJBaseGameLayer*, int button, bool rightSide) {
     GatoBot::sharedState()->handleClick(self, rightSide, Pressed);
 
     GJBaseGameLayer_pushButtonO(self, button, rightSide);
 }
 
-void(__thiscall* GJBaseGameLayer_releaseButtonO)(gd::GJBaseGameLayer*, int, bool);
-void __fastcall GJBaseGameLayer_releaseButtonH(gd::GJBaseGameLayer* self, uintptr_t, int button, bool rightSide) {
+HOOKDEF(void, GJBaseGameLayer_releaseButton, gd::GJBaseGameLayer*, int button, bool rightSide) {
     GatoBot::sharedState()->handleClick(self, rightSide, Released);
 
     GJBaseGameLayer_releaseButtonO(self, button, rightSide);
 }
 
-void(__thiscall* PlayLayer_storeCheckpointO)(gd::PlayLayer*, gd::CheckpointObject*);
-void __fastcall PlayLayer_storeCheckpointH(gd::PlayLayer* self, uintptr_t, gd::CheckpointObject* checkpoint) {
-    PlayLayer_storeCheckpointO(self, checkpoint);
-
-    GatoBot::sharedState()->handleCheckpoint(gd::PlayLayer::get());
-}
-
-void(__thiscall* PlayLayer_removeLastCheckpointO)(gd::PlayLayer*);
-void __fastcall PlayLayer_removeLastCheckpointH(gd::PlayLayer* self, uintptr_t) {
+HOOKDEF(void, PlayLayer_removeLastCheckpoint, gd::PlayLayer*) {
     PlayLayer_removeLastCheckpointO(self);
 
     auto bot = GatoBot::sharedState();
@@ -196,8 +202,7 @@ void __fastcall PlayLayer_removeLastCheckpointH(gd::PlayLayer* self, uintptr_t) 
         bot->practiceCheckpoints.pop_back();
 }
 
-void(__thiscall* PlayLayer_resetLevelO)(gd::PlayLayer*);
-void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
+HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
     auto bot = GatoBot::sharedState();
 
     // disable practice mode
@@ -276,8 +281,7 @@ void __fastcall PlayLayer_resetLevelH(gd::PlayLayer* self, uintptr_t) {
     }
 }
 
-void(__thiscall* PlayLayer_destroyPlayerO)(gd::PlayLayer*, gd::PlayerObject*, gd::GameObject*);
-void __fastcall PlayLayer_destroyPlayerH(gd::PlayLayer* self, uintptr_t, gd::PlayerObject* player, gd::GameObject* obj) {
+HOOKDEF(void, PlayLayer_destroyPlayer, gd::PlayLayer*, gd::PlayerObject* player, gd::GameObject* obj) {
     PlayLayer_destroyPlayerO(self, player, obj);
 
     auto bot = GatoBot::sharedState();
@@ -285,8 +289,19 @@ void __fastcall PlayLayer_destroyPlayerH(gd::PlayLayer* self, uintptr_t, gd::Pla
     if(bot->status == Rendering && MBO(bool, self, 0x39C)) bot->toggleRender();
 }
 
-void(__thiscall* CCScheduler_updateO)(CCScheduler*, float);
-void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
+HOOKDEF(void, PlayLayer_levelComplete, gd::PlayLayer*) {
+    PlayLayer_levelCompleteO(self);
+
+    GatoBot::sharedState()->resetBasicVariables(false);
+}
+
+HOOKDEF(void, PlayLayer_onQuit, gd::PlayLayer*) {
+    PlayLayer_onQuitO(self);
+
+    GatoBot::sharedState()->resetBasicVariables(true);
+}
+
+HOOKDEF(void, CCScheduler_update, CCScheduler*, float dt) {
     auto bot = GatoBot::sharedState();
 
     auto pLayer = gd::PlayLayer::get();
@@ -356,22 +371,7 @@ void __fastcall CCScheduler_updateH(CCScheduler* self, uintptr_t, float dt) {
     }
 }
 
-void(__thiscall* PlayLayer_levelCompleteO)(gd::PlayLayer*);
-void __fastcall PlayLayer_levelCompleteH(gd::PlayLayer* self, uintptr_t) {
-    PlayLayer_levelCompleteO(self);
-
-    GatoBot::sharedState()->resetBasicVariables(false);
-}
-
-void(__thiscall* PlayLayer_onQuitO)(gd::PlayLayer*);
-void __fastcall PlayLayer_onQuitH(gd::PlayLayer* self, uintptr_t) {
-    PlayLayer_onQuitO(self);
-
-    GatoBot::sharedState()->resetBasicVariables(true);
-}
-
-void(__thiscall* CCDirector_drawSceneO)(CCDirector*);
-void __fastcall CCDirector_drawSceneH(CCDirector* self, uintptr_t) {
+HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
     auto bot = GatoBot::sharedState();
 
     if(bot->status == Rendering && bot->settings.fastRender && !bot->gamePaused) {
@@ -396,124 +396,108 @@ void __fastcall CCDirector_drawSceneH(CCDirector* self, uintptr_t) {
     else CCDirector_drawSceneO(self);
 }
 
-void loadHooks() {
+// setup
+void GBHooks::mem_init() {
     auto bot = GatoBot::sharedState();
 
     // PlayLayer::update
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x2029c0),
-        reinterpret_cast<void*>(&PlayLayer_updateH),
-        reinterpret_cast<void**>(&PlayLayer_updateO)
-    );
-
-    // CCDirector::drawScene
-    MH_CreateHook(
-        GetProcAddress(bot->cocosBaseAddr, "?drawScene@CCDirector@cocos2d@@QAEXXZ"),
-        reinterpret_cast<void*>(&CCDirector_drawSceneH),
-        reinterpret_cast<void**>(&CCDirector_drawSceneO)
+    GB_CreateHook(
+        gd::base + 0x2029c0,
+        PlayLayer_updateH,
+        PlayLayer_updateO
     );
 
     // GJBaseGameLayer::pushButton
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x111500),
-        reinterpret_cast<void*>(&GJBaseGameLayer_pushButtonH),
-        reinterpret_cast<void**>(&GJBaseGameLayer_pushButtonO)
+    GB_CreateHook(
+        gd::base + 0x111500,
+        GJBaseGameLayer_pushButtonH,
+        GJBaseGameLayer_pushButtonO
     );
 
     // GJBaseGameLayer::releaseButton
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x111660),
-        reinterpret_cast<void*>(&GJBaseGameLayer_releaseButtonH),
-        reinterpret_cast<void**>(&GJBaseGameLayer_releaseButtonO)
+    GB_CreateHook(
+        gd::base + 0x111660,
+        GJBaseGameLayer_releaseButtonH,
+        GJBaseGameLayer_releaseButtonO
     );
 
     // PlayLayer::removeLastCheckpoint
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20b830),
-        reinterpret_cast<void*>(&PlayLayer_removeLastCheckpointH),
-        reinterpret_cast<void**>(&PlayLayer_removeLastCheckpointO)
+    GB_CreateHook(
+        gd::base + 0x20b830,
+        PlayLayer_removeLastCheckpointH,
+        PlayLayer_removeLastCheckpointO
     );
 
     // PlayLayer::resetLevel
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20bf00),
-        reinterpret_cast<void*>(&PlayLayer_resetLevelH),
-        reinterpret_cast<void**>(&PlayLayer_resetLevelO)
-    );
-
-    // PlayLayer::onComplete
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1fd3d0),
-        reinterpret_cast<void*>(&PlayLayer_levelCompleteH),
-        reinterpret_cast<void**>(&PlayLayer_levelCompleteO)
-    );
-
-    // PlayLayer::onQuit
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20d810),
-        reinterpret_cast<void*>(&PlayLayer_onQuitH),
-        reinterpret_cast<void**>(&PlayLayer_onQuitO)
+    GB_CreateHook(
+        gd::base + 0x20bf00,
+        PlayLayer_resetLevelH,
+        PlayLayer_resetLevelO
     );
 
     // PlayLayer::destroyPlayer
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x20a1a0),
-        reinterpret_cast<void*>(&PlayLayer_destroyPlayerH),
-        reinterpret_cast<void**>(&PlayLayer_destroyPlayerO)
+    GB_CreateHook(
+        gd::base + 0x20a1a0,
+        PlayLayer_destroyPlayerH,
+        PlayLayer_destroyPlayerO
     );
 
-    MH_EnableHook(MH_ALL_HOOKS);
+    // PlayLayer::onComplete
+    GB_CreateHook(
+        gd::base + 0x1fd3d0,
+        PlayLayer_levelCompleteH,
+        PlayLayer_levelCompleteO
+    );
 
-    // - disabled by default
+    // PlayLayer::onQuit
+    GB_CreateHook(
+        gd::base + 0x20d810,
+        PlayLayer_onQuitH,
+        PlayLayer_onQuitO
+    );
+
     // CCScheduler::update
-    MH_CreateHook(
+    GB_CreateHook(
         bot->updateHookAddr,
-        reinterpret_cast<void*>(&CCScheduler_updateH),
-        reinterpret_cast<void**>(&CCScheduler_updateO)
+        CCScheduler_updateH,
+        CCScheduler_updateO
     );
+
+    // CCDirector::drawScene
+    GB_CreateHook(
+        GetProcAddress(bot->cocosBaseAddr, "?drawScene@CCDirector@cocos2d@@QAEXXZ"),
+        CCDirector_drawSceneH,
+        CCDirector_drawSceneO
+    );
+
+    #ifndef GB_GEODE
+    MH_EnableHook(MH_ALL_HOOKS);
+    #endif
 
     bot->settings.loadedHooks = true;
+    bot->botStatusChanged();
 }
 
-// load
-DWORD WINAPI ModThread(void* hModule) {
-    // debug console
-    /*if(AllocConsole()) {
-        freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-    }*/
-
-    // GatoBot
-    GatoBot::setupBot();
-
-    // MinHook
-    MH_Initialize();
+void GatoBot::setupBasicHooks() {
+    using namespace GBHooks;
 
     // PlayLayer::init
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1fb780),
-        reinterpret_cast<void*>(&PlayLayer_initH),
-        reinterpret_cast<void**>(&PlayLayer_initO)
-    );
+    GB_CreateHook(
+        gd::base + 0x1fb780,
+        PlayLayer_initH,
+        PlayLayer_initO
+    ); 
 
     // PauseLayer::customSetup
-    MH_CreateHook(
-        reinterpret_cast<void*>(gd::base + 0x1e4620),
-        reinterpret_cast<void*>(&PauseLayer_customSetupH),
-        reinterpret_cast<void**>(&PauseLayer_customSetupO)
+    GB_CreateHook(
+        gd::base + 0x1e4620,
+        PauseLayer_customSetupH,
+        PauseLayer_customSetupO
     );
 
+    #ifdef GB_GEODE
+    GBHooks::mem_init();
+    #else
     MH_EnableHook(MH_ALL_HOOKS);
-
-    return 0;
-}
-
-BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
-    if (reason == DLL_PROCESS_ATTACH) {
-        auto h = CreateThread(0, 0, ModThread, handle, 0, 0);
-        if (h)
-            CloseHandle(h);
-        else
-            return FALSE;
-    }
-    return TRUE;
+    #endif
 }
