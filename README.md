@@ -5,7 +5,7 @@ This bot is **heavily** inspired by [ReplayBot](https://github.com/matcool/Repla
 
 ### Features
 - **Internal renderer** (up to 8K resolution)
-- Mega Hack replay support (Frame Fixes accuracy only)
+- Mega Hack replay support
 - High accuracy
 
 > Video soon
