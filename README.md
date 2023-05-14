@@ -10,8 +10,8 @@ This bot is **heavily** inspired by [ReplayBot](https://github.com/matcool/Repla
 
 > Video soon
 
-![image](https://user-images.githubusercontent.com/57293929/213887369-1842a66b-067e-4d11-8d09-a4f8dda6a936.png)
-![image](https://user-images.githubusercontent.com/57293929/213887317-d469f53c-ed6e-4a9b-a426-2600db0331e4.png)
+![image](https://media.discordapp.net/attachments/876787955321163806/1107370490999361577/image.png?width=1054&height=591)
+![image](https://cdn.discordapp.com/attachments/876787955321163806/1107370589989118072/image.png)
 
 ### Special thanks
 - [HJFod](https://github.com/hjfod) (Libraries)
