@@ -126,7 +126,7 @@ HOOKDEF(void, PlayLayer_update, gd::PlayLayer*, float dt) {
     // update replay / render
     if((bot->status == Replaying || bot->status == Rendering)
         && !MBO(bool, self, 0x39C) 
-        && MBO(bool, self, 0x2EC)
+        && MBO(bool, self, 0x2EC) 
         && bot->levelFrames.size() > 0 
         && (size_t)bot->currentFrame < bot->levelFrames.size()) // shut up cmake 
     {
@@ -277,7 +277,7 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
         bot->timeFromStart = 0;
 
         // update music offset
-        bot->currentMusicOffset = bot->getTimeForXPos(self) + MBO(float, self->m_pLevelSettings, 0xFC); // timeForXPos + songOffset 
+        bot->currentMusicOffset = bot->getTimeForXPos(self) + MBO(float, self->m_pLevelSettings, 0xFC); // timeForXPos + songOffset
     }
 }
 
@@ -292,7 +292,10 @@ HOOKDEF(void, PlayLayer_destroyPlayer, gd::PlayLayer*, gd::PlayerObject* player,
 HOOKDEF(void, PlayLayer_levelComplete, gd::PlayLayer*) {
     PlayLayer_levelCompleteO(self);
 
-    GatoBot::sharedState()->resetBasicVariables(false);
+    auto bot = GatoBot::sharedState();
+
+    if(bot->status != Rendering) bot->resetBasicVariables(false);
+    else bot->toggleRenderDelayed();
 }
 
 HOOKDEF(void, PlayLayer_onQuit, gd::PlayLayer*) {
@@ -305,6 +308,7 @@ HOOKDEF(void, CCScheduler_update, CCScheduler*, float dt) {
     auto bot = GatoBot::sharedState();
 
     auto pLayer = gd::PlayLayer::get();
+    bot->gamePaused = MBO(bool, pLayer, 0x52F);
 
     // this is a really shit way to display an error
     if(bot->lastInfoCode != 0) {
@@ -335,8 +339,8 @@ HOOKDEF(void, CCScheduler_update, CCScheduler*, float dt) {
             auto pLayer = gd::PlayLayer::get();
             float deltaTime = 1.f / static_cast<float>(bot->settings.targetGameFPS); // constant delta time
 
-            if(bot->currentFrame % bot->settings.divideFramesBy == 0
-                && !MBO(bool, pLayer, 0x39C) 
+            if((bot->currentFrame % bot->settings.divideFramesBy == 0 || bot->currentFrame == 0)
+                && !MBO(bool, pLayer, 0x39C)
                 && MBO(bool, pLayer, 0x2EC))
             {
                 auto fmod = gd::FMODAudioEngine::sharedEngine();
@@ -367,6 +371,10 @@ HOOKDEF(void, CCScheduler_update, CCScheduler*, float dt) {
         }
     }
     else {
+        if(bot->status == Recording || bot->status == Replaying) {
+            dt = bot->settings.targetSPF;
+        }
+
         CCScheduler_updateO(self, dt);
     }
 }

@@ -1,4 +1,5 @@
 #include "GatoBot.hpp"
+#include "ScrollNode.hpp"
 
 struct ResolutionSize {
     int width;
@@ -21,6 +22,10 @@ public:
 
     std::string videoPath;
 
+    // settings
+    SettingsPopupScrollLayer* optScrollLayer; // options
+    SettingsPopupScrollLayer* resScrollLayer; // resolutions
+
 public:
     static SettingsPopup* create() {
         auto pRet = new SettingsPopup();
@@ -37,9 +42,9 @@ public:
     void keyBackClicked() override;
 
     extension::CCScale9Sprite* createTextInput(const char*, int, int, int, const char*, CCPoint, float, const char*);
-    void createHelpBtn(const char*, CCPoint, float);
+    gd::CCMenuItemSpriteExtra* createHelpBtn(const char*, CCPoint, float);
     void createCodecBtn(const char*, const char*, const char*, CCPoint);
-    void createResBtn(const char*, const char*, CCPoint, ResolutionSize);
+    void createResBtn(const char*, const char*, ResolutionSize);
     void createToggle(const char*, const char*);
     void createResInputs(CCPoint);
 
@@ -52,4 +57,5 @@ public:
     void onCancel(CCObject*);
 
     void textChanged(gd::CCTextInputNode*) override;
+    void scrollWheel(float, float) override;
 };

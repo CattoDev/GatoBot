@@ -365,7 +365,7 @@ void GatoBot::toggleRender() {
 
         reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x20d3c0)(gd::PlayLayer::get(), false);
     }
-;
+
     updateStatusLabel();
 
     endDelayStart = 0;

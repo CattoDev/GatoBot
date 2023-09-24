@@ -287,6 +287,8 @@ LevelFrameData GatoBot::frameFromString(std::string frameData) {
         );
         pData.yVel = std::stof(pDataVec[3]);
 
+        pData.isSet = true;
+
         // old macros don't store rotation
         if(pDataVec.size() > 4)
             pData.rotation = std::stof(pDataVec[4]);

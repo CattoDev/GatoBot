@@ -66,6 +66,7 @@ struct FFmpegSettings {
 
     std::string getSongCmdStr() {
         std::stringstream stream;
+
         stream << "ffmpeg";
         stream << " -y -ss ";
         stream << songOffset;

@@ -4,8 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(GatoBot VERSION 1.0.0)
 
-# build geode version
-set(GB_BUILD_GEODE OFF)
+set(GB_BUILD_GEODE OFF) # build geode version
+set(GB_DEBUG ON) # enable debugging console
 
 # src files
 file(GLOB SOURCE_FILES 
@@ -16,9 +16,12 @@ file(GLOB SOURCE_FILES
     libraries/nativefiledialog/src/nfd_win.cpp 
 )
 
-# funny definition
+# funny definitions
 if(GB_BUILD_GEODE)
     add_compile_definitions(GB_GEODE)
+endif()
+if(GB_DEBUG)
+    add_compile_definitions(GB_DEBUG)
 endif()
 
 # force C++ compiler
@@ -63,6 +66,11 @@ if(NOT GB_BUILD_GEODE)
 endif()
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
+
+# post build script
+if(NOT GB_BUILD_GEODE)
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND py ${CMAKE_CURRENT_SOURCE_DIR}/InstallDLL.py)
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECTHEADERS})
 target_link_libraries(${PROJECT_NAME} ${MOD_LIBS})

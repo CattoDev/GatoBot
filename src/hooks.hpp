@@ -14,6 +14,7 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*);
 HOOKDEF(void, PlayLayer_destroyPlayer, gd::PlayLayer*, gd::PlayerObject*, gd::GameObject*);
 HOOKDEF(void, PlayLayer_levelComplete, gd::PlayLayer*);
 HOOKDEF(void, PlayLayer_onQuit, gd::PlayLayer*);
+HOOKDEF(void, PlayLayer_timeForXPos2, void*);
 
 HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*);
 HOOKDEF(void, GJBaseGameLayer_pushButton, gd::GJBaseGameLayer*, int, bool);

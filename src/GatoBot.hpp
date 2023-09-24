@@ -110,6 +110,7 @@ public:
     int targetFPS;
 
     // used only for rendering
+    clock_t totalRenderTimeStart;
     float timeFromStart;
     float endDelayStart;
 
@@ -179,6 +180,7 @@ public:
 
     // other shit
     static inline int (*FMOD_Channel_setPosition)();
+    static inline int (*FMOD_Channel_getPosition)();
     static inline void (*FMOD_Channel_getPitch)(FMOD::Channel*, float*);
     static inline void (*FMOD_Channel_setPitch)();
     static inline gdstring (*ZipUtils_compressString)(gdstring, bool, int);

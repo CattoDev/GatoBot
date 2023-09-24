@@ -105,9 +105,11 @@ void GatoBot::updateStatusLabel() {
 
     char buf[100];
 
+    float timeDiff = (float)(clock() - totalRenderTimeStart) / CLOCKS_PER_SEC;
+
     SHOWSTATUS(Recording, "%s frame: %d", currentFrame + 1);
     SHOWSTATUS(Replaying, "%s frame: %d/%d", currentFrame, levelFrames.size());
-    SHOWSTATUS(Rendering, "%s frame: %d/%d\nTime from start: %f", currentFrame + 1, levelFrames.size(), timeFromStart);
+    SHOWSTATUS(Rendering, "%s frame: %d/%d\nSeconds rendered: %f\nTotal rendering time: %f", currentFrame + 1, levelFrames.size(), timeFromStart, timeDiff);
 
     statusLabel->setString(buf);
 }
@@ -181,6 +183,10 @@ void GatoBot::setupBot() {
         GetProcAddress(fmodBase, "FMOD_Channel_SetPosition")
     );
 
+    GatoBot::FMOD_Channel_getPosition = reinterpret_cast<decltype(GatoBot::FMOD_Channel_getPosition)>(
+        GetProcAddress(fmodBase, "FMOD_Channel_GetPosition")
+    );
+
     GatoBot::FMOD_Channel_getPitch = reinterpret_cast<decltype(GatoBot::FMOD_Channel_getPitch)>(
         GetProcAddress(fmodBase, "FMOD_Channel_GetPitch")
     );
@@ -214,7 +220,7 @@ void GatoBot::toggleHook(ToggleHookType hType, bool toggle) {
 
     #else
 
-    // shit code that I won't even bother refactoring
+    // shit code that I won't even bother rewriting
     switch(hType) {
         case SchedulerUpdate:
             if(toggle) MH_EnableHook(updateHookAddr);
@@ -236,7 +242,7 @@ void GatoBot::toggleHook(ToggleHookType hType, bool toggle) {
 }
 
 void GatoBot::botStatusChanged() {
-    toggleHook(SchedulerUpdate, status == Rendering);
+    toggleHook(SchedulerUpdate, status != None);
     toggleHook(DrawScene, status == Rendering);
     toggleHook(PlayLayerUpdate, status != None);
 }
