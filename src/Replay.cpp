@@ -13,37 +13,51 @@ bool compareMHevents(const nlohmann::json& a, const nlohmann::json& b) {
     return a["frame"] < b["frame"];
 }
 
-// toggle
-void GatoBot::toggleReplay(int FPS, float speed) {
-    if(status == Replaying) {
-        status = Disabled;
+void GatoBot::updateReplaying() {
+    auto pLayer = gd::PlayLayer::get();
 
-        // reset fps
-        auto dir = CCDirector::sharedDirector();
-        dir->setAnimationInterval(lastSPF);
-        dir->getScheduler()->setTimeScale(1);
-        setSongPitch(1);
-    }
-    else {
-        if(FPS > 0 && speed > 0) {
-            auto dir = CCDirector::sharedDirector();
+    if(pLayer != nullptr) {
+        if(
+            !MBO(bool, pLayer, 0x39C) 
+         && MBO(bool, pLayer, 0x2EC) 
+         && levelFrames.size() > 0 
+         && currentFrame < levelFrames.size()
+        ) {
+            LevelFrameData frame = levelFrames[currentFrame];
 
-            float newSPF = 1.f / (FPS * speed);
-            lastSPF = dir->getAnimationInterval();
+            if(frame.frame > -1) {
+                /*
+                    jump
+                */
+                // player 1
+                if(frame.player1.action != None) {
+                    if(frame.player1.action == Pressed) pLayer->pushButton(1, true);
+                    else {
+                        scheduledRelease = true;
+                        pLayer->releaseButton(1, true);
+                    }
+                }
 
-            settings.targetSPF = newSPF;
-            settings.targetSpeed = speed;
-            targetFPS = FPS;
+                // player 2
+                if(frame.player2.action != None && (MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
+                    if(frame.player2.action == Pressed) pLayer->pushButton(1, false);
+                    else {
+                        scheduledRelease = true;
+                        pLayer->releaseButton(1, false);
+                    }
+                }
 
-            dir->setAnimationInterval(newSPF);
-            dir->getScheduler()->setTimeScale(speed);
+                /*
+                    player data
+                */
+                frame.player1.applyToPlayer(pLayer->m_pPlayer1);
+                frame.player2.applyToPlayer(pLayer->m_pPlayer2);
+            }
+
+            // increment
+            currentFrame++;
         }
-
-        status = Replaying;
     }
-
-    botStatusChanged();
-    updateStatusLabel();
 }
 
 void GatoBot::loadNewReplay() {

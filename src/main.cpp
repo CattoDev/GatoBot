@@ -1,4 +1,4 @@
-#include "../GatoBot.hpp"
+#include "GatoBot.hpp"
 
 // load
 DWORD WINAPI ModThread(void* hModule) {
@@ -10,7 +10,9 @@ DWORD WINAPI ModThread(void* hModule) {
     #endif
 
     // MinHook
+    #ifndef GB_GEODE
     MH_Initialize();
+    #endif
 
     // GatoBot
     GatoBot::sharedState()->setupBot();

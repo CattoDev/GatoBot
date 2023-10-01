@@ -152,7 +152,6 @@ bool SettingsPopup::init() {
 
     // video bitrate input
     createTextInput("bitrate", 6, 100, 30, "0123456789", winSize / 2 + CCPoint(160, 80));
-    textInputs[0]->setString(std::to_string(bot->settings.bitrate).c_str());
 
     // codec label
     auto codecLabel = CCLabelBMFont::create("Codec:", "bigFont.fnt");
@@ -163,7 +162,7 @@ bool SettingsPopup::init() {
 
     // codec input
     createTextInput("codec", 20, 100, 30, nullptr, winSize / 2 + CCPoint(160, -30));
-    textInputs[1]->setString(bot->settings.codec.c_str());
+    textInputs.back()->setString(bot->settings.getOption<std::string>("codec").c_str());
 
     // codec help
     createHelpBtn("Which codec to use when encoding the video\n<cb>Intel (CPU) - uses the default h264 codec to encode</c>\n<cg>NVIDIA (GPU) - uses the h264 NVENC codec to encode</c>\n<cr>AMD (GPU) - uses the h264 AMF codec to encode</c>\n<cy>Using NVENC or AMF is usually faster</c>\nYou can also use other codecs, like HEVC (<cy>for 8K videos</c>)", textInputs[1]->getPosition() + CCPoint(50, 25), .6);
@@ -191,11 +190,11 @@ bool SettingsPopup::init() {
     optScrollLayer->setupList();
 
     // preset toggle
-    toggles[3]->toggle(true);
-    toggles[4]->toggle(bot->settings.showConsoleWindow);
-    toggles[5]->toggle(true);
+    toggles[3]->toggle(bot->settings.getOption<bool>("includeLevelSong"));
+    toggles[4]->toggle(bot->settings.getOption<bool>("showConsoleWindow"));
+    toggles[5]->toggle(!bot->settings.getOption<bool>("fastRender"));
 
-    videoPath = bot->settings.videoPath;
+    videoPath = bot->settings.getOption<std::string>("outputPath");
 
     // resolution input
     auto resLabel = CCLabelBMFont::create("Resolution", "bigFont.fnt");
@@ -217,13 +216,13 @@ bool SettingsPopup::init() {
     resScrollLayer->useCells = false;
     resScrollLayer->itemSize = 35;
 
-    createResBtn("360p", "GJ_button_04.png", {640, 360, 2000});
-    createResBtn("480p", "GJ_button_04.png", {854, 480, 4000});
-    createResBtn("720p", "GJ_button_04.png", {1280, 720, 6000});
-    createResBtn("1080p", "GJ_button_04.png", {1920, 1080, 10000});
-    createResBtn("2K", "GJ_button_04.png", {2560, 1440, 25000});
-    createResBtn("4K", "GJ_button_04.png", {3840, 2160, 50000});
-    createResBtn("8K", "GJ_button_04.png", {7680, 4320, 100000});
+    createResBtn("360p", "GJ_button_04.png", {640, 360, 2000, 96});
+    createResBtn("480p", "GJ_button_04.png", {854, 480, 4000, 96});
+    createResBtn("720p", "GJ_button_04.png", {1280, 720, 6000, 128});
+    createResBtn("1080p", "GJ_button_04.png", {1920, 1080, 10000, 192});
+    createResBtn("2K", "GJ_button_04.png", {2560, 1440, 25000, 192});
+    createResBtn("4K", "GJ_button_04.png", {3840, 2160, 50000, 192});
+    createResBtn("8K", "GJ_button_04.png", {7680, 4320, 100000, 192});
 
     resScrollLayer->setPosition(winSize / 2 + CCPoint(0, 45));
     m_pLayer->addChild(resScrollLayer, 10);
@@ -234,7 +233,7 @@ bool SettingsPopup::init() {
 
     // file path
     createTextInput("output path", MAX_PATH, 110, 60, nullptr, m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(CCPoint(-15, 80))), .4, "chatFont.fnt");
-    auto filePathInput = textInputs[5];
+    auto filePathInput = textInputs.back();
     filePathInput->setDelegate(this);
     filePathInput->setVisible(false);
 
@@ -242,6 +241,12 @@ bool SettingsPopup::init() {
     filePathArea->setPosition(filePathInput->getPosition());
     filePathArea->setScale(.75);
     m_pButtonMenu->addChild(filePathArea, 1);
+
+    std::string _outputPath = bot->settings.getOption<std::string>("outputPath");
+    if(_outputPath.length()) {
+        filePathArea->setString(_outputPath.c_str());
+        filePathInput->setString(_outputPath.c_str());
+    }
 
     auto filePathBtnSpr = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
     auto filePathBtn = gd::CCMenuItemSpriteExtra::create(filePathBtnSpr, this, menu_selector(SettingsPopup::onChoosePath));
@@ -257,7 +262,7 @@ bool SettingsPopup::init() {
     m_pLayer->addChild(audioBitrateLabel, 1);
 
     createTextInput("bitrate", 6, 100, 30, "0123456789", winSize / 2 + CCPoint(160, 25));
-    textInputs.back()->setString(std::to_string(bot->settings.audioBitrate).c_str());
+    textInputs.back()->setString(std::to_string(bot->settings.getOption<int>("vBitrate")).c_str());
 
     // extra arguments
     //createTextInput("extra args (optional)", 200, 140, 30, nullptr, winSize / 2 + CCPoint(0, -15), .4, "chatFont.fnt");
@@ -280,11 +285,51 @@ bool SettingsPopup::init() {
     delayInput->setVisible(false);
 
     // other
+    presetResolution();
     setTouchEnabled(true);
     setKeypadEnabled(true);
     setMouseEnabled(true);
     
     return true;
+}
+
+void SettingsPopup::presetResolution() {
+    ResolutionSize closestRes;
+
+    auto bot = GatoBot::sharedState();
+
+    if(!bot->renderSettingsSaved) {
+        int frameWidth = static_cast<int>(CCEGLView::sharedOpenGLView()->getFrameSize().width);
+
+        // get resolution closest to window size (according to width)
+        for(size_t i = 0; i < resolutions.size(); i++) {
+            auto curWidth = resolutions[i].width;
+
+            if(curWidth < frameWidth) {
+                int curDiff = std::abs(curWidth - frameWidth);
+                int nextDiff = std::abs(resolutions[i + 1].width - frameWidth);
+
+                if(curDiff > nextDiff && i < resolutions.size() - 2)
+                    closestRes = resolutions[i + 1];
+                
+                else
+                    closestRes = resolutions[i];
+            }
+        }
+
+        textInputs[0]->setString(std::to_string(closestRes.videoBitrate).c_str());
+        textInputs[2]->setString(std::to_string(closestRes.width).c_str());
+        textInputs[3]->setString(std::to_string(closestRes.height).c_str());
+        textInputs[4]->setString(std::to_string(bot->settings.getOption<int>("targetFPS")).c_str());
+        textInputs[6]->setString(std::to_string(closestRes.audioBitrate).c_str());
+    }
+    else {
+        textInputs[0]->setString(std::to_string(bot->settings.getOption<int>("vBitrate")).c_str());
+        textInputs[2]->setString(std::to_string(bot->settings.getOption<int>("targetWidth")).c_str());
+        textInputs[3]->setString(std::to_string(bot->settings.getOption<int>("targetHeight")).c_str());
+        textInputs[4]->setString(std::to_string(bot->settings.getOption<int>("targetFPS")).c_str());
+        textInputs[6]->setString(std::to_string(bot->settings.getOption<int>("aBitrate")).c_str());
+    }
 }
 
 void SettingsPopup::createResInputs(CCPoint position) {
@@ -299,10 +344,10 @@ void SettingsPopup::createResInputs(CCPoint position) {
 
     // labels
     auto xLabel = CCLabelBMFont::create("x", "bigFont.fnt");
-    xLabel->setScale(.4);
+    xLabel->setScale(.4f);
 
     auto slashLabel = CCLabelBMFont::create("/", "bigFont.fnt");
-    slashLabel->setScale(.4);
+    slashLabel->setScale(.4f);
 
     m_pLayer->addChild(xLabel, 1);
     m_pLayer->addChild(slashLabel, 1);
@@ -310,14 +355,9 @@ void SettingsPopup::createResInputs(CCPoint position) {
     xLabel->setPosition(m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(textInputs[2]->getPosition() + CCPoint(25, 0))));
     slashLabel->setPosition(m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(textInputs[3]->getPosition() + CCPoint(25, 0))));
 
-    textInputs[2]->setMaxLabelScale(.4);
-    textInputs[3]->setMaxLabelScale(.4);
-    textInputs[4]->setMaxLabelScale(.4);
-
-    // default values
-    textInputs[2]->setString(std::to_string(bot->settings.targetWidth).c_str());
-    textInputs[3]->setString(std::to_string(bot->settings.targetHeight).c_str());
-    textInputs[4]->setString(std::to_string(bot->settings.targetFPS).c_str());
+    textInputs[2]->setMaxLabelScale(.4f);
+    textInputs[3]->setMaxLabelScale(.4f);
+    textInputs[4]->setMaxLabelScale(.4f);
 }
 
 void SettingsPopup::onHelp(CCObject* pSender) {
@@ -340,10 +380,11 @@ void SettingsPopup::onResolution(CCObject* pSender) {
 
     auto res = resolutions[tag];
 
+    textInputs[0]->setString(std::to_string(res.videoBitrate).c_str());
     textInputs[2]->setString(std::to_string(res.width).c_str());
     textInputs[3]->setString(std::to_string(res.height).c_str());
     textInputs[4]->setString("60");
-    textInputs[0]->setString(std::to_string(res.bitrate).c_str());
+    textInputs[6]->setString(std::to_string(res.audioBitrate).c_str());
 }
 
 void SettingsPopup::onChoosePath(CCObject*) {
@@ -381,7 +422,7 @@ void SettingsPopup::onToggle(CCObject* pSender) {
             auto window = GetConsoleWindow();
             FreeConsole();
             PostMessage(window, WM_CLOSE, 0, 0);
-            GatoBot::sharedState()->settings.showConsoleWindow = false;
+            GatoBot::sharedState()->settings.setOption("showConsoleWindow", false);
         }
     }
 
@@ -430,7 +471,8 @@ void SettingsPopup::onApply(CCObject*) {
     }
 
     // delay
-    float delay = std::strtof(delayInput->getString(), nullptr);
+    const char* delayInputStr = delayInput->getString();
+    float delay = (strlen(delayInputStr) && toggles[6]->isToggled()) ? std::strtof(delayInputStr, nullptr) : 0;
 
     if(delay > 99) delay = 99;
     if(delay < 0) delay = 0;
@@ -439,26 +481,29 @@ void SettingsPopup::onApply(CCObject*) {
     bot->lastSPF = dir->getAnimationInterval();
     dir->setAnimationInterval(1.f / (float)enteredGameFPS);
 
-    bot->settings.bitrate = std::stoi(textInputs[0]->getString());
-    bot->settings.audioBitrate = std::stoi(textInputs[6]->getString());
+    bot->settings.setOption("vBitrate", std::stoi(textInputs[0]->getString()));
+    bot->settings.setOption("aBitrate", std::stoi(textInputs[6]->getString()));
 
-    bot->settings.captureMegaHackLabels = toggles[0]->isToggled();
-    bot->settings.captureMegaHackDrawNodes = toggles[1]->isToggled();
-    bot->settings.capturePercentage = toggles[2]->isToggled();
-    bot->settings.includeLevelSong = toggles[3]->isToggled();
+    bot->settings.setOption("MHCaptureLabels", toggles[0]->isToggled());
+    bot->settings.setOption("MHCaptureDrawNodes", toggles[1]->isToggled());
 
-    bot->settings.codec = std::string(textInputs[1]->getString());
-    bot->settings.videoPath = videoPath;
+    bot->settings.setOption("capturePercentage", toggles[2]->isToggled());
+    bot->settings.setOption("includeLevelSong", toggles[3]->isToggled());
 
-    bot->settings.targetWidth = frameWidth;
-    bot->settings.targetHeight = frameHeight;
-    bot->settings.targetFPS = enteredFPS;
-    bot->settings.targetGameFPS = enteredGameFPS;
-    bot->settings.showConsoleWindow = toggles[4]->isToggled();
-    bot->settings.fastRender = !toggles[5]->isToggled();
-    bot->settings.delayEnd = toggles[6]->isToggled();
+    bot->settings.setOption("codec", std::string(textInputs[1]->getString()));
+    bot->settings.setOption("outputPath", videoPath);
 
-    bot->settings.renderDelay = delay;
+    bot->settings.setOption("targetWidth", frameWidth);
+    bot->settings.setOption("targetHeight", frameHeight);
+    bot->settings.setOption("targetFPS", enteredFPS);
+    bot->settings.setOption("targetGameFPS", enteredGameFPS);
+
+    bot->settings.setOption("showConsoleWindow", toggles[4]->isToggled());
+    bot->settings.setOption("fastRender", !toggles[5]->isToggled());
+    bot->settings.setOption("delayEnd", toggles[6]->isToggled());
+    
+    bot->settings.setOption("renderDelay", delay);
+    bot->settings.setOption("extraArgs", std::string(""));
 
     //bot->settings.extraArguments = std::string(textInputs[7]->getString());
 
@@ -467,10 +512,10 @@ void SettingsPopup::onApply(CCObject*) {
     // exit
     auto gbmenu = CCDirector::sharedDirector()->getRunningScene()->getChildByTag(0xAE);
     if(gbmenu != nullptr) reinterpret_cast<gd::FLAlertLayer*>(gbmenu)->keyBackClicked();
-
-    GatoBot::sharedState()->toggleRender();
-
-    reinterpret_cast<void(__thiscall*)(gd::PauseLayer*, CCObject*)>(gd::base + 0x1E6040)(bot->currentPauseLayer, nullptr);
+    
+    bot->renderSettingsSaved = true;
+    bot->changeStatus(Rendering);
+    bot->retryLevel();
 }
 
 void SettingsPopup::onCancel(CCObject*) {

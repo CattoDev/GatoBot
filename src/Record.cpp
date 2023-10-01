@@ -4,38 +4,20 @@
 #include <sstream>
 #include <nfd.h>
 
-void GatoBot::toggleRecord(int FPS, float speed) {
-    if(status == Recording) {
-        status = Disabled;
+void GatoBot::updateRecording() {
+    auto pLayer = gd::PlayLayer::get();
 
-        // reset fps
-        auto dir = CCDirector::sharedDirector();
-        dir->setAnimationInterval(lastSPF);
-        dir->getScheduler()->setTimeScale(1);
-        setSongPitch(1);
-    }
-    else {
-        levelFrames.clear();
+    if(pLayer != nullptr) {
+        if(
+            !MBO(bool, pLayer, 0x39C) // isDead?
+        &&  MBO(bool, pLayer, 0x2EC)
+        ) {
+            handleFrame(pLayer);
 
-        if(FPS > 0 && speed > 0) {
-            auto dir = CCDirector::sharedDirector();
-
-            float newSPF = 1.f / (FPS * speed);
-            lastSPF = dir->getAnimationInterval();
-
-            settings.targetSPF = newSPF;
-            settings.targetSpeed = speed;
-            targetFPS = FPS;
-
-            dir->setAnimationInterval(newSPF);
-            dir->getScheduler()->setTimeScale(speed);
+            // increment
+            currentFrame++;
         }
-
-        status = Recording;
     }
-
-    botStatusChanged();
-    updateStatusLabel();
 }
 
 // dumbass
@@ -148,7 +130,9 @@ void GatoBot::saveReplay(std::string& filePath) {
     saveFile.close();
 }
 
-void GatoBot::handleClick(gd::GJBaseGameLayer* self, bool rightSide, ButtonType btnType) {
+bool GatoBot::handleClick(gd::GJBaseGameLayer* self, bool rightSide, ButtonType btnType) {
+    if(status != Recording) return true;
+    
     bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
 
     bool playerIsDead = MBO(bool, self, 0x39C);
@@ -159,6 +143,8 @@ void GatoBot::handleClick(gd::GJBaseGameLayer* self, bool rightSide, ButtonType 
 
         else queuedBtnP1 = btnType;
     }
+
+    return true;
 }
 
 // unused

@@ -176,7 +176,7 @@ void GatoBotMenu::FLAlert_Clicked(gd::FLAlertLayer* alert, bool btn2) {
 
     if(alert->getTag() == 3 && !btn2) {
         // toggle render
-        GatoBot::sharedState()->toggleRender();
+        GatoBot::sharedState()->changeStatus(Rendering);
     }
     if(alert->getTag() == 4 && !btn2) {
         // download ffmpeg
@@ -206,7 +206,7 @@ void GatoBotMenu::onRecord(CCObject*) {
     }
     else {
         if(bot->status != Recording) RecordPopup::open(this);
-        else bot->toggleRecord();
+        else bot->changeStatus(Disabled);
     }
 }
 
@@ -229,7 +229,7 @@ void GatoBotMenu::onReplay(CCObject*) {
     }
     else {
         if(bot->status != Replaying) RecordPopup::open(this, true);
-        else bot->toggleReplay();
+        else bot->changeStatus(Disabled);
     }
 }
 
@@ -267,7 +267,7 @@ void GatoBotMenu::onRender(CCObject*) {
         }
     }
     else {
-        bot->toggleRender();
+        bot->changeStatus(Disabled);
     }
 }
 

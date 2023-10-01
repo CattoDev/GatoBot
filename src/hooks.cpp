@@ -2,18 +2,23 @@
 
 #include "GatoBot.hpp"
 #include "GatoBotMenu.hpp"
-#include "LoadingCircle.hpp"
 
 /*
     MACROS
 */
 #undef HOOKDEF
+#ifdef GB_GEODE
+#define HOOKDEF(returntype, funcname, selftype, ...) \
+returntype GBHooks::funcname##H(selftype self, __VA_ARGS__)
+#else
 #define HOOKDEF(returntype, funcname, selftype, ...) \
 returntype __fastcall GBHooks::funcname##H(selftype self, uintptr_t, ##__VA_ARGS__)
+#endif
 
 // replace MH_CreateHook function if using geode lol
 #ifdef GB_GEODE
-#define GB_CreateHook(addr, hook, orig) \
+#define GB_CreateHook(addr, _hook, orig) \
+    Mod::get()->addHook(reinterpret_cast<void*>(addr), &GBHooks::_hook, GEODE_CONCAT("GatoBot -> ", GEODE_STR(_hook)), tulip::hook::TulipConvention::Thiscall); \
     orig = reinterpret_cast<decltype(orig)>(addr)
 #else
 #define GB_CreateHook(addr, hook, orig) \
@@ -24,23 +29,30 @@ returntype __fastcall GBHooks::funcname##H(selftype self, uintptr_t, ##__VA_ARGS
     HOOKS
 */
 HOOKDEF(bool, PlayLayer_init, gd::PlayLayer*, gd::GJGameLevel* level) {
-    if(!PlayLayer_initO(self, level)) return false;
-
     auto bot = GatoBot::sharedState();
+
+    bot->statusLabel = nullptr;
+    bot->exitLabel = nullptr;
+
+    bot->resetBasicVariables(true);
+
+    if(!PlayLayer_initO(self, level))
+        return false;
+
     auto dir = CCDirector::sharedDirector();
-    auto winSize = dir->getOpenGLView()->getFrameSize();
+    auto winSize = dir->getWinSize();
     bot->practiceCheckpoints.clear();
     bot->player1holding = false;
     bot->player2holding = false;
+    bot->scheduledPause = false;
     bot->currentFrame = 0;
     bot->practiceCheckpoints.clear();
+    bot->timeFromLastEsc = clock();
     
     bot->queuedBtnP1 = None;
     bot->queuedBtnP2 = None;
     bot->lastBtnP1 = None;
     bot->lastBtnP2 = None;
-
-    bot->resetBasicVariables(true);
 
     // status label
     bot->statusLabel = CCLabelBMFont::create(" ", "bigFont.fnt");
@@ -51,6 +63,14 @@ HOOKDEF(bool, PlayLayer_init, gd::PlayLayer*, gd::GJGameLevel* level) {
 
     self->m_uiLayer->addChild(bot->statusLabel, 100);
 
+    // exit label
+    bot->exitLabel = CCLabelBMFont::create("Press Esc again to pause", "bigFont.fnt");
+    bot->exitLabel->setPosition(winSize.width / 2, 75);
+    bot->exitLabel->setScale(.75);
+    bot->exitLabel->setOpacity(0);
+
+    self->m_uiLayer->addChild(bot->exitLabel, 100);
+
     return true;
 }
 
@@ -59,7 +79,7 @@ HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*) {
 
     auto bot = GatoBot::sharedState();
 
-    if(!bot->settings.loadedHooks)
+    if(!bot->loadedHooks)
         GBHooks::mem_init();
 
     bot->currentPauseLayer = self;
@@ -78,119 +98,14 @@ HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*) {
     self->addChild(menu, 100);
 }
 
-HOOKDEF(void, PlayLayer_update, gd::PlayLayer*, float dt) {
-    auto bot = GatoBot::sharedState();
-
-    bot->gamePaused = MBO(bool, self, 0x52F);
-
-    if(bot->status != Disabled)
-        bot->updateStatusLabel();
-
-    if(bot->status == Recording || bot->status == Replaying || bot->status == Rendering) {
-        auto dir = CCDirector::sharedDirector();
-        const float tScale = dir->getScheduler()->getTimeScale();
-
-        if(bot->status != Rendering) {
-            // speed changed
-            if(tScale != bot->settings.targetSpeed) {
-                bot->settings.targetSPF = 1.f / (bot->targetFPS * tScale);
-                bot->settings.targetSpeed = tScale;
-            }
-
-            // fps changed
-            if(dir->getAnimationInterval() != bot->settings.targetSPF) {
-                dir->setAnimationInterval(bot->settings.targetSPF);
-            }
-
-            // fix audio speed
-            if(bot->getSongPitch() != tScale) {
-                bot->setSongPitch(tScale);
-            }
-
-            // update checkpoints
-            if(bot->status == Recording) {
-                if(self->m_checkpoints->count() > bot->practiceCheckpoints.size()) {
-                    bot->handleCheckpoint(self);
-                }
-            }
-
-            // lock delta
-            dt = bot->settings.targetSPF * tScale;
-        }
-        else {
-            // lock delta
-            dt = (1.f / bot->settings.targetGameFPS) * tScale;
-        }
-    }
-
-    // update replay / render
-    if((bot->status == Replaying || bot->status == Rendering)
-        && !MBO(bool, self, 0x39C) 
-        && MBO(bool, self, 0x2EC) 
-        && bot->levelFrames.size() > 0 
-        && (size_t)bot->currentFrame < bot->levelFrames.size()) // shut up cmake 
-    {
-        LevelFrameData frame = bot->levelFrames[bot->currentFrame];
-
-        if(frame.frame > -1) {
-            // jump
-            // player 1
-            if(frame.player1.action != None) {
-                if(frame.player1.action == Pressed) self->pushButton(1, true);
-                else self->releaseButton(1, true);
-            }
-
-            // player 2
-            if(frame.player2.action != None && (MBO(bool, self->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, self->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
-                if(frame.player2.action == Pressed) self->pushButton(1, false);
-                else self->releaseButton(1, false);
-            }
-
-            frame.player1.applyToPlayer(self->m_pPlayer1);
-            frame.player2.applyToPlayer(self->m_pPlayer2);
-        }
-
-        // increment
-        bot->currentFrame++;
-    }
-    else {
-        // update recording
-        if(bot->status == Recording
-            && !MBO(bool, self, 0x39C) // isDead?
-            && MBO(bool, self, 0x2EC)
-        )
-        { 
-            bot->handleFrame(self);
-        
-            // increment
-            bot->currentFrame++;
-        }
-        else 
-            if(self->m_pPlayer1->getPositionX() == 0) {
-                bot->currentFrame = 0;
-        }
-    }
-
-    // done replaying / rendering
-    if(bot->status != Recording && bot->currentFrame >= bot->levelFrames.size()) {
-        if(bot->status == Replaying) bot->toggleReplay();
-        if(bot->status == Rendering) bot->toggleRenderDelayed();
-    }
-
-    // call original
-    PlayLayer_updateO(self, dt);
-}
-
 HOOKDEF(void, GJBaseGameLayer_pushButton, gd::GJBaseGameLayer*, int button, bool rightSide) {
-    GatoBot::sharedState()->handleClick(self, rightSide, Pressed);
-
-    GJBaseGameLayer_pushButtonO(self, button, rightSide);
+    if(GatoBot::sharedState()->handleClick(self, rightSide, Pressed))
+        GJBaseGameLayer_pushButtonO(self, button, rightSide);
 }
 
 HOOKDEF(void, GJBaseGameLayer_releaseButton, gd::GJBaseGameLayer*, int button, bool rightSide) {
-    GatoBot::sharedState()->handleClick(self, rightSide, Released);
-
-    GJBaseGameLayer_releaseButtonO(self, button, rightSide);
+    if(GatoBot::sharedState()->handleClick(self, rightSide, Released))
+        GJBaseGameLayer_releaseButtonO(self, button, rightSide);
 }
 
 HOOKDEF(void, PlayLayer_removeLastCheckpoint, gd::PlayLayer*) {
@@ -269,10 +184,7 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
         }
     }
 
-    if(bot->status == Recording || bot->status == Replaying)
-        bot->setSongPitch(CCDirector::sharedDirector()->getScheduler()->getTimeScale());
-
-    if(!self->m_isPracticeMode) {
+    if(!self->m_isPracticeMode && !bot->isDelayedRendering()) {
         bot->currentFrame = 0;
         bot->timeFromStart = 0;
 
@@ -286,103 +198,55 @@ HOOKDEF(void, PlayLayer_destroyPlayer, gd::PlayLayer*, gd::PlayerObject* player,
 
     auto bot = GatoBot::sharedState();
 
-    if(bot->status == Rendering && MBO(bool, self, 0x39C)) bot->toggleRender();
+    if((bot->status == Replaying || bot->status == Rendering) && MBO(bool, self, 0x39C))
+        bot->resetBasicVariables(true);
 }
 
 HOOKDEF(void, PlayLayer_levelComplete, gd::PlayLayer*) {
+    GatoBot::sharedState()->resetBasicVariables(false);
+    
     PlayLayer_levelCompleteO(self);
-
-    auto bot = GatoBot::sharedState();
-
-    if(bot->status != Rendering) bot->resetBasicVariables(false);
-    else bot->toggleRenderDelayed();
 }
 
 HOOKDEF(void, PlayLayer_onQuit, gd::PlayLayer*) {
-    PlayLayer_onQuitO(self);
-
     GatoBot::sharedState()->resetBasicVariables(true);
+    
+    PlayLayer_onQuitO(self);
+}
+
+HOOKDEF(void, PlayLayer_pauseGame, gd::PlayLayer*, bool idk) {
+    auto bot = GatoBot::sharedState();
+
+    if(!bot->scheduledPause && bot->status == Rendering) {
+        clock_t curEscTime = clock();
+
+        if(curEscTime - bot->timeFromLastEsc < 1000) { // 1 sec timeout
+            PlayLayer_pauseGameO(self, idk);
+        }
+        
+        bot->timeFromLastEsc = curEscTime;
+    }
+    else PlayLayer_pauseGameO(self, idk);
 }
 
 HOOKDEF(void, CCScheduler_update, CCScheduler*, float dt) {
     auto bot = GatoBot::sharedState();
 
     auto pLayer = gd::PlayLayer::get();
-    bot->gamePaused = MBO(bool, pLayer, 0x52F);
+    bot->inPlayLayer = pLayer != nullptr;
+    if(bot->inPlayLayer)
+        bot->gamePaused = MBO(bool, pLayer, 0x52F);
 
-    // this is a really shit way to display an error
-    if(bot->lastInfoCode != 0) {
-        // pause game
-        reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x20d3c0)(pLayer, false);
-        
-        if(bot->lastInfoCode == 1) {
-            auto alert = gd::FLAlertLayer::create(nullptr, "FFmpeg Error", "OK", nullptr, 400, CCString::createWithFormat("<cr>FFmpeg errored. Check the console for logs.</c>")->m_sString);
-            alert->m_pTargetLayer = bot->currentPauseLayer;
-            alert->show();
-        }
-        if(bot->lastInfoCode == 2) {
-            CCDirector::sharedDirector()->getRunningScene()->addChild(GBLoadingCircle::create(), 9999);
-        }
-
-        bot->lastInfoCode = 0;
-    }
-
-    if(bot->status == Rendering && !bot->gamePaused) {
-        // delay
-        if(bot->timeFromStart - bot->endDelayStart >= bot->settings.renderDelay && bot->endDelayStart > 0) {
-            bot->toggleRender();
-
-            return;
-        }
-
-        if(!bot->currentFrameHasData) {
-            auto pLayer = gd::PlayLayer::get();
-            float deltaTime = 1.f / static_cast<float>(bot->settings.targetGameFPS); // constant delta time
-
-            if((bot->currentFrame % bot->settings.divideFramesBy == 0 || bot->currentFrame == 0)
-                && !MBO(bool, pLayer, 0x39C)
-                && MBO(bool, pLayer, 0x2EC))
-            {
-                auto fmod = gd::FMODAudioEngine::sharedEngine();
-
-                if(fmod->isBackgroundMusicPlaying() && !pLayer->m_hasCompletedLevel) {
-                    // what the fuck why are the args backwards
-                    auto channel = fmod->m_pGlobalChannel;
-                    int musicTime = static_cast<int>((bot->getTimeForXPos(pLayer) + MBO(float, pLayer->m_pLevelSettings, 0xFC)) * 1000);
-                    __asm {
-                        push 0x1;
-                        push musicTime;
-                        push channel;
-                    }
-                    GatoBot::FMOD_Channel_setPosition();
-                }
-
-                CCScheduler_updateO(self, deltaTime);
-                bot->updateRender(); // render frame
-
-                bot->timeFromStart += (1.f / static_cast<float>(bot->settings.targetFPS));
-            }
-            else {
-                CCScheduler_updateO(self, deltaTime);
-            }
-
-            if(bot->endDelayStart > 0)
-                bot->currentFrame++;
-        }
-    }
-    else {
-        if(bot->status == Recording || bot->status == Replaying) {
-            dt = bot->settings.targetSPF;
-        }
-
+    if(bot->updatePlayLayer(dt))
         CCScheduler_updateO(self, dt);
-    }
+
+    bot->checkErrors();
 }
 
 HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
     auto bot = GatoBot::sharedState();
 
-    if(bot->status == Rendering && bot->settings.fastRender && !bot->gamePaused) {
+    if(bot->status == Rendering && bot->settings.getOption<bool>("fastRender") && !bot->gamePaused) {
         if(!self->isPaused())
             self->getScheduler()->update(0);
 
@@ -391,7 +255,8 @@ HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
         kmGLPushMatrix();
 
         // draw status label
-        bot->statusLabel->visit();
+        if(bot->statusLabel != nullptr) bot->statusLabel->visit();
+        if(bot->exitLabel != nullptr) bot->exitLabel->visit();
 
         kmGLPopMatrix();
 
@@ -407,13 +272,6 @@ HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
 // setup
 void GBHooks::mem_init() {
     auto bot = GatoBot::sharedState();
-
-    // PlayLayer::update
-    GB_CreateHook(
-        gd::base + 0x2029c0,
-        PlayLayer_updateH,
-        PlayLayer_updateO
-    );
 
     // GJBaseGameLayer::pushButton
     GB_CreateHook(
@@ -464,6 +322,13 @@ void GBHooks::mem_init() {
         PlayLayer_onQuitO
     );
 
+    // PlayLayer::pauseGame
+    GB_CreateHook(
+        gd::base + 0x20d3c0,
+        PlayLayer_pauseGameH,
+        PlayLayer_pauseGameO
+    );
+
     // CCScheduler::update
     GB_CreateHook(
         bot->updateHookAddr,
@@ -482,7 +347,7 @@ void GBHooks::mem_init() {
     MH_EnableHook(MH_ALL_HOOKS);
     #endif
 
-    bot->settings.loadedHooks = true;
+    bot->loadedHooks = true;
     bot->botStatusChanged();
 }
 

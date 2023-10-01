@@ -10,3 +10,6 @@
 [submodule "libraries/nativefiledialog"]
 	path = libraries/nativefiledialog
 	url = https://github.com/mlabbe/nativefiledialog
+[submodule "libraries/fmod-headers"]
+	path = libraries/fmod-headers
+	url = https://github.com/zaphircd/fmod-headers

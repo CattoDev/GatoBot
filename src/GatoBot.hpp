@@ -2,6 +2,7 @@
 #define __GATOBOT_INCLUDE__
 
 #include "includes.hpp"
+#include "Settings.hpp"
 
 // funny macro
 #define MBO(type, class, offset) *reinterpret_cast<type*>(reinterpret_cast<uintptr_t>(class) + offset)
@@ -10,7 +11,7 @@ enum ButtonType { None, Pressed, Released };
 enum BotStatus { Disabled, Recording, Replaying, Rendering };
 enum ReplayType { GatoBotR, MegaHack, MegaHackJson };
 enum ReplayLoadStatus { Success, MissingFrames, Failed };
-enum ToggleHookType { SchedulerUpdate, DrawScene, PlayLayerUpdate };
+enum ToggleHookType { SchedulerUpdate, DrawScene };
 
 struct PlayerData {
     cocos2d::CCPoint position = CCPointZero;
@@ -20,7 +21,7 @@ struct PlayerData {
     float rotation = -1;
     bool isSet = false;
 
-    PlayerData() {} // ?
+    PlayerData() {}
 
     static PlayerData fromPlayer(gd::PlayerObject* player) {
         PlayerData data;
@@ -47,37 +48,14 @@ struct CheckpointData {
     LevelFrameData frame;
 };
 
-struct GatoBotSettings {
-    int bitrate = 50000; //K
-    int audioBitrate = 192; //K
-    std::string videoPath = "";
-    std::string codec = "h264";
-
-    int targetWidth;
-    int targetHeight;
-    int targetFPS;
-    int targetGameFPS;
-    float targetSPF;
-    float targetSpeed;
-    int divideFramesBy = 1;
-    float renderDelay;
-
-    std::string extraArguments;
-
-    bool captureMegaHackLabels = false;
-    bool captureMegaHackDrawNodes = false;
-    bool capturePercentage = false;
-    bool includeLevelSong = false;
-    bool showConsoleWindow = false;
-    bool fastRender = false;
-    bool delayEnd = false;
-
-    bool loadedHooks = false;
-};
-
 struct ReplayLoadResponse {
     ReplayLoadStatus status;
     int fps = -1;
+};
+
+struct StatusChangeData {
+    int FPS = 0;
+    float speed = 0;
 };
 
 class GBLoadingCircle;
@@ -107,25 +85,29 @@ public:
 
     float frameDelta;
     float currentMusicOffset;
-    int targetFPS;
 
     // used only for rendering
     clock_t totalRenderTimeStart;
-    float timeFromStart;
-    float endDelayStart;
+    clock_t timeFromLastEsc;
+    float timeFromStart = 0;
+    float endDelayStart = 0;
+    bool scheduledPause = false;
+    bool inPlayLayer = false;
 
     bool player1holding;
     bool player2holding;
     bool gamePaused;
     bool presetSettings;
+    bool renderSettingsSaved = false;
+    bool loadedHooks = false;
 
     CCLabelBMFont* statusLabel;
+    CCLabelBMFont* exitLabel;
     gd::PauseLayer* currentPauseLayer;
     std::vector<GLubyte> currentFrameData;
     bool currentFrameHasData;
 
     HMODULE cocosBaseAddr;
-    std::mutex threadLock;
 
     std::vector<CheckpointData> practiceCheckpoints;
     std::vector<LevelFrameData> levelFrames;
@@ -144,11 +126,10 @@ public:
 
     void handleFrame(gd::PlayLayer*);
     void handleCheckpoint(gd::PlayLayer*);
-    void handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
+    bool handleClick(gd::GJBaseGameLayer*, bool, ButtonType);
 
     void saveReplay(std::string& filepath);
     ReplayLoadResponse loadReplay(std::vector<char>&, ReplayType);
-    void updateRender();
     void updateStatusLabel();
     LevelFrameData frameFromString(std::string data);
 
@@ -157,21 +138,31 @@ public:
     void visitPlayLayer();
 
     void retryLevel();
+    void pauseLevel();
     float getSongPitch();
     void setSongPitch(float);
     void organizeReplay();
     bool hasMissingFrames();
 
-    void toggleRecord(int a = 0, float b = 0);
-    void toggleReplay(int a = 0, float b = 0);
-    void toggleRender();
-    void toggleRenderDelayed();
+    void renderFrame();
+    void toggleRendering(bool);
     void botStatusChanged();
+    void changeStatus(BotStatus, StatusChangeData d = {});
+    void updateExitText();
+    bool isDelayedRendering();
+
+    bool updatePlayLayer(float&);
+    void updateCommon(float&);
+    void updateRecording();
+    void updateReplaying();
+    bool updateRendering(float&);
 
     void toggleGameFPSCap(bool);
     void toggleHook(ToggleHookType, bool);
+    void toggleAnticheat(bool);
 
     void resetBasicVariables(bool);
+    void checkErrors();
 
     // callbacks
     void openBotMenu(CCObject*);
@@ -179,10 +170,6 @@ public:
     void loadNewReplay();
 
     // other shit
-    static inline int (*FMOD_Channel_setPosition)();
-    static inline int (*FMOD_Channel_getPosition)();
-    static inline void (*FMOD_Channel_getPitch)(FMOD::Channel*, float*);
-    static inline void (*FMOD_Channel_setPitch)();
     static inline gdstring (*ZipUtils_compressString)(gdstring, bool, int);
     static inline gdstring (*ZipUtils_decompressString)(gdstring, bool, int);
     static inline void (__thiscall* PauseLayer_onRetry)(gd::PauseLayer*, CCObject*);

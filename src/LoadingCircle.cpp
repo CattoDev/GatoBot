@@ -21,7 +21,9 @@ void GBLoadingCircle::remove() {
     auto self = GatoBot::sharedState()->loadingCircle;
 
     if(self != nullptr) {
-        self->circle->fadeAndRemove();
+        if(self->circle != nullptr)
+            self->circle->fadeAndRemove();
+        
         self->keyBackClicked();
     }
 }

@@ -117,6 +117,7 @@ float SettingsPopupScrollLayer::getBottomScroll() {
 }
 
 void SettingsPopupScrollLayer::scrollWheel(float posDiff, float) {
+    // change pos
     float newPos;
     
     if(horizontal)
@@ -129,9 +130,6 @@ void SettingsPopupScrollLayer::scrollWheel(float posDiff, float) {
 }
 
 void SettingsPopupScrollLayer::setPos(float newPos) {
-    //std::cout << newPos << " => ";
-    //std::cout << getTopScroll() << ", " << getBottomScroll() << "\n";
-
     // lock scrolling
     if(newPos < getTopScroll())
         newPos = getTopScroll();

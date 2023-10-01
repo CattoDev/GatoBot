@@ -27,11 +27,7 @@ endif()
 # force C++ compiler
 set_source_files_properties(libraries/nativefiledialog/src/nfd_common.c PROPERTIES LANGUAGE CXX)
 
-if(GB_BUILD_GEODE)
-    file(GLOB MAIN_SRC src/geode/*.cpp) 
-else()
-    file(GLOB MAIN_SRC src/standalone/*.cpp) 
-endif()
+file(GLOB MAIN_SRC src/standalone/*.cpp) 
 
 list(APPEND SOURCE_FILES ${MAIN_SRC})
 
@@ -66,6 +62,10 @@ if(NOT GB_BUILD_GEODE)
 endif()
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
+
+# fmod headers
+add_subdirectory(libraries/fmod-headers)
+list(APPEND MOD_LIBS fmod)
 
 # post build script
 if(NOT GB_BUILD_GEODE)

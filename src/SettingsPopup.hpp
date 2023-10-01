@@ -4,7 +4,8 @@
 struct ResolutionSize {
     int width;
     int height;
-    int bitrate;
+    int videoBitrate;
+    int audioBitrate;
 };
 
 class SettingsPopup : public gd::FLAlertLayer, public gd::TextInputDelegate {
@@ -47,6 +48,7 @@ public:
     void createResBtn(const char*, const char*, ResolutionSize);
     void createToggle(const char*, const char*);
     void createResInputs(CCPoint);
+    void presetResolution();
 
     void onToggle(CCObject*);
     void onChoosePath(CCObject*);
