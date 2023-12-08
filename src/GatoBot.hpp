@@ -27,7 +27,7 @@ struct PlayerData {
         PlayerData data;
         data.position = MBO(CCPoint, player, 0x67C);
         data.yVel = MBO(double, player, 0x628);
-        //data.isHolding = MBO(bool, player, 0x611);
+        data.isHolding = MBO(bool, player, 0x611);
         data.rotation = player->getRotation();
         data.isSet = true;
 
@@ -58,8 +58,14 @@ struct StatusChangeData {
     float speed = 0;
 };
 
+struct GBClickSound {
+    float time = 0;
+    ButtonType action = None;
+};
+
 class GBLoadingCircle;
 class GatoBotMenu;
+struct FFmpegSettings;
 
 class GatoBot : public CCNode {
 public:
@@ -93,6 +99,7 @@ public:
     float endDelayStart = 0;
     bool scheduledPause = false;
     bool inPlayLayer = false;
+    bool currentFrameHasData = false;
 
     bool player1holding;
     bool player2holding;
@@ -105,12 +112,12 @@ public:
     CCLabelBMFont* exitLabel;
     gd::PauseLayer* currentPauseLayer;
     std::vector<GLubyte> currentFrameData;
-    bool currentFrameHasData;
 
     HMODULE cocosBaseAddr;
 
     std::vector<CheckpointData> practiceCheckpoints;
     std::vector<LevelFrameData> levelFrames;
+    std::vector<GBClickSound> clickSounds;
 
     // hook addresses
     LPVOID updateHookAddr;
@@ -146,18 +153,23 @@ public:
 
     void renderFrame();
     void toggleRendering(bool);
+    void renderingLoop();
+    FFmpegSettings setupFFmpegSettings();
     void botStatusChanged();
     void changeStatus(BotStatus, StatusChangeData d = {});
     void updateExitText();
     bool isDelayedRendering();
+    bool isPlaybackStatus();
 
     bool updatePlayLayer(float&);
     void updateCommon(float&);
     void updateRecording();
     void updateReplaying();
     bool updateRendering(float&);
+    void processClicks(gd::PlayLayer*, LevelFrameData);
+    void processClickSound(ButtonType);
+    void addMusic(FFmpegSettings&);
 
-    void toggleGameFPSCap(bool);
     void toggleHook(ToggleHookType, bool);
     void toggleAnticheat(bool);
 
@@ -173,6 +185,8 @@ public:
     static inline gdstring (*ZipUtils_compressString)(gdstring, bool, int);
     static inline gdstring (*ZipUtils_decompressString)(gdstring, bool, int);
     static inline void (__thiscall* PauseLayer_onRetry)(gd::PauseLayer*, CCObject*);
+    static inline void (__thiscall* CCEGLView_pollEvents)(CCEGLView*);
+    static inline bool (__thiscall* CCEGLView_windowShouldClose)(CCEGLView*);
 };
 
 #endif

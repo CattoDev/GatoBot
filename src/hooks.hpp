@@ -35,7 +35,7 @@ HOOKDEF(void, GJBaseGameLayer_pushButton, gd::GJBaseGameLayer*, int, bool);
 HOOKDEF(void, GJBaseGameLayer_releaseButton, gd::GJBaseGameLayer*, int, bool);
 HOOKDEF(void, CCScheduler_update, CCScheduler*, float);
 HOOKDEF(void, CCDirector_drawScene, CCDirector*);
-HOOKDEF(void, PlayerObject_releaseButton, gd::PlayerObject*, int);
+HOOKDEF(void, CCDisplayLinkDirector_mainLoop, CCDisplayLinkDirector*);
 
 namespace GBHooks {
     inline void mem_init();

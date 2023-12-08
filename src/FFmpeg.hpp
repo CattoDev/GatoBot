@@ -11,8 +11,9 @@ struct FFmpegSettings {
     int bitrate;
     int audioBitrate;
 
-    float songOffset;
-    double time;
+    // these values can change
+    float* songOffset;
+    float* time;
 
     std::string codec;
     std::string tempPath;

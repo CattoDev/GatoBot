@@ -3,6 +3,7 @@
 class GBLoadingCircle : public gd::FLAlertLayer {
 public:
     gd::LoadingCircle* circle;
+    CCLabelBMFont* captionLabel;
 
 public:
     static GBLoadingCircle* create() {
@@ -19,4 +20,5 @@ public:
     bool init();
 
     static void remove();
+    static void setCaption(const char*);
 };

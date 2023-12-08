@@ -42,7 +42,7 @@ public:
     bool init();
     void keyBackClicked() override;
 
-    extension::CCScale9Sprite* createTextInput(const char*, int, int, int, const char*, CCPoint, float, const char*);
+    extension::CCScale9Sprite* createTextInput(const char*, int, float, float, const char*, CCPoint, float, const char*);
     gd::CCMenuItemSpriteExtra* createHelpBtn(const char*, CCPoint, float);
     void createCodecBtn(const char*, const char*, const char*, CCPoint);
     void createResBtn(const char*, const char*, ResolutionSize);

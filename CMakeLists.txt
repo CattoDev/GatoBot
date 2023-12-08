@@ -5,7 +5,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(GatoBot VERSION 1.0.0)
 
 set(GB_BUILD_GEODE OFF) # build geode version
-set(GB_DEBUG ON) # enable debugging console
+set(GB_DEBUG OFF) # enable debugging console
+
+# _CRT_SECURE_NO_WARNINGS
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
 # src files
 file(GLOB SOURCE_FILES 

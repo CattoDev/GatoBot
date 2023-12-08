@@ -21,7 +21,7 @@ void GatoBot::updateReplaying() {
             !MBO(bool, pLayer, 0x39C) 
          && MBO(bool, pLayer, 0x2EC) 
          && levelFrames.size() > 0 
-         && currentFrame < levelFrames.size()
+         && currentFrame < (int)levelFrames.size()
         ) {
             LevelFrameData frame = levelFrames[currentFrame];
 
@@ -29,23 +29,7 @@ void GatoBot::updateReplaying() {
                 /*
                     jump
                 */
-                // player 1
-                if(frame.player1.action != None) {
-                    if(frame.player1.action == Pressed) pLayer->pushButton(1, true);
-                    else {
-                        scheduledRelease = true;
-                        pLayer->releaseButton(1, true);
-                    }
-                }
-
-                // player 2
-                if(frame.player2.action != None && (MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
-                    if(frame.player2.action == Pressed) pLayer->pushButton(1, false);
-                    else {
-                        scheduledRelease = true;
-                        pLayer->releaseButton(1, false);
-                    }
-                }
+                processClicks(pLayer, frame);
 
                 /*
                     player data
@@ -60,18 +44,40 @@ void GatoBot::updateReplaying() {
     }
 }
 
+void GatoBot::processClicks(gd::PlayLayer* pLayer, LevelFrameData frame) {
+    // player 1
+    if(frame.player1.action != None) {
+        queuedBtnP1 = frame.player1.action;
+
+        processClickSound(queuedBtnP1);
+
+        if(frame.player1.action == Pressed) pLayer->pushButton(1, true);
+        else pLayer->releaseButton(1, true);
+    }
+
+    // player 2
+    if(frame.player2.action != None && (MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isDualMode*/ && MBO(bool, pLayer->m_pLevelSettings, 0xFA) /*isTwoPlayer*/)) {
+        queuedBtnP2 = frame.player2.action;
+
+        processClickSound(queuedBtnP2);
+        
+        if(frame.player2.action == Pressed) pLayer->pushButton(1, false);
+        else pLayer->releaseButton(1, false);
+    }
+}
+
 void GatoBot::loadNewReplay() {
     // get file path
-    nfdchar_t *outPath = NULL;
-    nfdresult_t res = NFD_OpenDialog({"gatobot,mhr,mhr.json"}, nullptr, &outPath);
+    nfdchar_t *replayPath = NULL;
+    nfdresult_t res = NFD_OpenDialog({"gatobot,mhr,mhr.json"}, nullptr, &replayPath);
 
     if(res != NFD_OKAY) {
-        free(outPath);
+        free(replayPath);
         return;
     } 
 
     // replay type
-    #define SetReplayT(exte, enumt) if(strstr(outPath, exte) != NULL) rType = ReplayType::##enumt;
+    #define SetReplayT(exte, enumt) if(strstr(replayPath, exte) != NULL) rType = ReplayType::##enumt;
 
     ReplayType rType = ReplayType::GatoBotR;
 
@@ -84,12 +90,12 @@ void GatoBot::loadNewReplay() {
     // MegaHack replays are binary
     if(rType == MegaHack) openMode = std::ios_base::binary;
         
-    std::ifstream file(outPath, openMode);
+    std::ifstream file(replayPath, openMode);
     std::vector<char> data(std::istreambuf_iterator<char>(file), {});
 
     file.close();
 
-    free(outPath);
+    free(replayPath);
 
     if(data.size() > 0) {
         auto replayResp = loadReplay(data, rType);

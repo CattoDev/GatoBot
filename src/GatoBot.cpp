@@ -22,7 +22,6 @@ GatoBot* GatoBot::sharedState() {
         instance->statusLabel = nullptr;
         instance->lastInfoCode = 0;
         instance->lastSPF = CCDirector::sharedDirector()->getAnimationInterval();
-        instance->currentFrameHasData = false;
         instance->presetSettings = false;
 
         instance->levelFrames.reserve(99999);
@@ -59,32 +58,22 @@ bool GatoBot::FFmpegInstalled() {
 int GatoBot::getCurrentFPS() {
     // can't wait for stuff to break
     auto dir = CCDirector::sharedDirector();
-    return std::round(1.f / dir->getAnimationInterval() / dir->getScheduler()->getTimeScale());
-}
-
-void GatoBot::toggleGameFPSCap(bool toggled) {
-    uintptr_t addr = (uintptr_t)cocosBaseAddr + 0xC1710;
-    auto patchLoc = reinterpret_cast<void*>(addr);
-
-    std::vector<uint8_t> bytes = {0x75, 0x24};
-    if(!toggled) bytes = {0xEB, 0x24};
-
-    patchMemory(patchLoc, bytes);
+    return (int)std::round(1.f / dir->getAnimationInterval() / dir->getScheduler()->getTimeScale());
 }
 
 float GatoBot::getTimeForXPos(gd::PlayLayer* pLayer) {
-    float ret;
+    float retVal;
     float xPos = pLayer->m_pPlayer1->getPositionX();
     __asm movss xmm1, xPos;
     reinterpret_cast<void(__thiscall*)(gd::PlayLayer*, bool)>(gd::base + 0x208800)(pLayer, pLayer->m_isTestMode); // PlayLayer::timeForXPos2
-    __asm movss ret, xmm0; // return value
+    __asm movss retVal, xmm0; // return value
 
-    return ret;
+    return retVal;
 }
 
 void GatoBot::patchMemory(void* patchLoc, std::vector<uint8_t> bytes) {
     #ifdef GB_GEODE
-    Mod::get()->patch(patchLoc, bytes);
+    (void)Mod::get()->patch(patchLoc, bytes);
     #else
     
     // https://github.com/matcool/small-gd-mods/blob/main/src/menu-shaders.cpp#L19
@@ -116,11 +105,11 @@ void GatoBot::updateStatusLabel() {
     
     if(status == Rendering) {
         int nextFrame = currentFrame + 1;
-        if(nextFrame < levelFrames.size())
+        if(nextFrame < (int)levelFrames.size())
             snprintf(buf, 100, "Rendering frame: %d/%d\nSeconds rendered: %f\nTotal rendering time: %f", nextFrame, levelFrames.size(), timeFromStart, timeDiff);
 
         else
-            snprintf(buf, 100, "Rendering frame: %d/%d + %d\nSeconds rendered: %f\nTotal rendering time: %f", nextFrame, levelFrames.size(), nextFrame - levelFrames.size(), timeFromStart, timeDiff);
+            snprintf(buf, 100, "Rendering frame: %d/%d + %d\nSeconds rendered: %f\nTotal rendering time: %f", levelFrames.size(), levelFrames.size(), nextFrame - levelFrames.size(), timeFromStart, timeDiff);
     }
 
     statusLabel->setString(buf);
@@ -167,10 +156,12 @@ void GatoBot::changeStatus(BotStatus newStatus, StatusChangeData cData) {
             return;
         }
 
-        dir->setAnimationInterval(lastSPF);
+        if(status != Disabled) {
+            dir->setAnimationInterval(lastSPF);
         
-        dir->getScheduler()->setTimeScale(1);
-        setSongPitch(1);
+            dir->getScheduler()->setTimeScale(1);
+            setSongPitch(1);
+        }
     }
 
     // prepare for recording / replaying
@@ -231,7 +222,9 @@ void GatoBot::checkErrors() {
             alert->show();
         }
         if(lastInfoCode == 2) {
-            CCDirector::sharedDirector()->getRunningScene()->addChild(GBLoadingCircle::create(), 9999);
+            if(!loadingCircle) {
+                CCDirector::sharedDirector()->getRunningScene()->addChild(GBLoadingCircle::create(), 9999);
+            }
         }
         if(lastInfoCode == 3) {
             GBLoadingCircle::remove();
@@ -251,13 +244,13 @@ void GatoBot::updateExitText() {
         const int timeOut = 1000;
         const int timeOutHalf = timeOut / 2;
 
-        float diff = curTime - timeFromLastEsc;
+        auto diff = curTime - timeFromLastEsc;
         if(diff <= timeOut) {
             if(diff <= timeOut / 2)
                 exitLabel->setOpacity(255);
 
             else {
-                exitLabel->setOpacity(255 - (((diff - timeOutHalf) / timeOutHalf) * 255));
+                exitLabel->setOpacity((GLubyte)(255 - (((diff - timeOutHalf) / timeOutHalf) * 255)));
             }
         }
         else exitLabel->setOpacity(0);
@@ -282,6 +275,10 @@ bool GatoBot::updatePlayLayer(float& dt) {
             canAdvance = updateRendering(dt);
     }
 
+    if(status == Rendering && gamePaused) {
+        dt = settings.getOption<float>("targetSPF");
+    }
+
     return canAdvance;
 }
 
@@ -291,11 +288,11 @@ void GatoBot::updateCommon(float& dt) {
     const float tScale = dir->getScheduler()->getTimeScale();
 
     // bot done
-    if(currentFrame >= levelFrames.size() && status != Recording && !isDelayedRendering()) {
+    if(currentFrame >= (int)levelFrames.size() && status != Recording && !isDelayedRendering()) {
         resetBasicVariables(false);
         return;
     }
-    
+
     // speed changed
     if(tScale != settings.getOption<float>("targetSpeed")) {
         if(status != Rendering) {
@@ -303,6 +300,11 @@ void GatoBot::updateCommon(float& dt) {
             settings.setOption("targetSpeed", tScale);
         }
         else dir->getScheduler()->setTimeScale(settings.getOption<float>("targetSpeed"));
+    }
+
+    // fps changed
+    if(settings.getOption<int>("targetFPS") != getCurrentFPS()) {
+        dir->setAnimationInterval(1.f / (settings.getOption<int>("targetFPS") * tScale));
     }
 
     // audio speed
@@ -331,12 +333,16 @@ void GatoBot::setupBot() {
     GatoBot::ZipUtils_compressString = reinterpret_cast<decltype(GatoBot::ZipUtils_compressString)>(
         GetProcAddress(cocosBase, "?compressString@ZipUtils@cocos2d@@SA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V34@_NH@Z")
     );
-
     GatoBot::ZipUtils_decompressString = reinterpret_cast<decltype(GatoBot::ZipUtils_decompressString)>(
         GetProcAddress(cocosBase, "?decompressString@ZipUtils@cocos2d@@SA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V34@_NH@Z")
     );
-
     GatoBot::PauseLayer_onRetry = reinterpret_cast<decltype(GatoBot::PauseLayer_onRetry)>(gd::base + 0x1E6040);
+    GatoBot::CCEGLView_pollEvents = reinterpret_cast<decltype(GatoBot::CCEGLView_pollEvents)>(
+        GetProcAddress(cocosBase, "?pollEvents@CCEGLView@cocos2d@@QAEXXZ")
+    );
+    GatoBot::CCEGLView_windowShouldClose = reinterpret_cast<decltype(GatoBot::CCEGLView_windowShouldClose)>(
+        GetProcAddress(cocosBase, "?windowShouldClose@CCEGLView@cocos2d@@QAE_NXZ")
+    );
 
     // hooks
     setupBasicHooks();
@@ -355,8 +361,8 @@ void GatoBot::toggleHook(ToggleHookType hType, bool toggle) {
            hType == SchedulerUpdate && !h->getDisplayName().compare("GatoBot -> CCScheduler_updateH")
         || hType == DrawScene && !h->getDisplayName().compare("GatoBot -> CCDirector_drawSceneH")
         ) {
-            if(toggle) mod->enableHook(h);
-            else mod->disableHook(h);
+            if(toggle) (void)mod->enableHook(h);
+            else (void)mod->disableHook(h);
         }
     }
 
@@ -384,6 +390,15 @@ void GatoBot::botStatusChanged() {
 
     toggleAnticheat(status == Disabled);
 
+    // pauseGame releaseButton
+    std::vector<uint8_t> bytes = {0xe8, 0x2f, 0x7b, 0xfe, 0xff};
+    if(isPlaybackStatus()) bytes = {0x83, 0xC4, 0x04, 0x90, 0x90};
+    patchMemory(reinterpret_cast<void*>(gd::base + 0x20d43c), bytes);
+
     updateStatusLabel();
     checkErrors();
+}
+
+bool GatoBot::isPlaybackStatus() {
+    return status == Replaying || status == Rendering;
 }

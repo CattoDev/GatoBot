@@ -30,7 +30,7 @@ bool RecordPopup::init(bool isReplayScreen) {
 
     auto titleLabel = CCLabelBMFont::create(titleLabelText, "goldFont.fnt");
     titleLabel->setPosition(winSize / 2 + CCPoint(0, bg->getContentSize().height / 2 - 20));
-    titleLabel->limitLabelWidth(200, 1, .4);
+    titleLabel->limitLabelWidth(200, 1, .4f);
 
     m_pLayer->addChild(titleLabel, 1);
 
@@ -58,7 +58,7 @@ bool RecordPopup::init(bool isReplayScreen) {
 
     auto fpsInputBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     fpsInputBG->setContentSize(CCSize(280, 80));
-    fpsInputBG->setScale(.4);
+    fpsInputBG->setScale(.4f);
     fpsInputBG->setOpacity(100);
     fpsInputBG->setPosition(winSize / 2 + CCPoint(60, 30));
     m_pLayer->addChild(fpsInputBG, 1);
@@ -80,7 +80,7 @@ bool RecordPopup::init(bool isReplayScreen) {
 
     auto speedLabelBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     speedLabelBG->setContentSize(CCSize(280, 80));
-    speedLabelBG->setScale(.4);
+    speedLabelBG->setScale(.4f);
     speedLabelBG->setOpacity(100);
     speedLabelBG->setPosition(winSize / 2 + CCPoint(60, -10));
     m_pLayer->addChild(speedLabelBG, 1);

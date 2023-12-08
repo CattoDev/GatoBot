@@ -5,8 +5,13 @@
 #ifndef GB_GEODE
 #include <MinHook.h>
 
+#pragma warning(push)
+#pragma warning(disable : 4251)
+
 #include <cocos2d.h>
 using namespace cocos2d;
+
+#pragma warning(pop)
 
 #else
 #include <Geode/Geode.hpp>

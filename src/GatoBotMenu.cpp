@@ -23,7 +23,7 @@ bool GatoBotMenu::init() {
     auto bg = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     bg->setOpacity(100);
     bg->setContentSize(CCSize(300, 80));
-    bg->setScale(.4);
+    bg->setScale(.4f);
 
     addChild(bg);
 
@@ -51,13 +51,13 @@ bool GatoBotMenu::init() {
     m_pButtonMenu->addChild(repBtn);
 
     auto renBtnSpr = CCSprite::createWithSpriteFrameName("gj_ytIcon_001.png");
-    renBtnSpr->setScale(1.4);
+    renBtnSpr->setScale(1.4f);
     auto renBtn = gd::CCMenuItemSpriteExtra::create(renBtnSpr, this, menu_selector(GatoBotMenu::onRender));
 
     m_pButtonMenu->addChild(renBtn); 
 
     auto savBtnSpr = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
-    savBtnSpr->setScale(1.1);
+    savBtnSpr->setScale(1.1f);
     auto savBtn = gd::CCMenuItemSpriteExtra::create(savBtnSpr, this, menu_selector(GatoBotMenu::onSaveReplay));
 
     m_pButtonMenu->addChild(savBtn); 
@@ -73,13 +73,13 @@ bool GatoBotMenu::init() {
     auto btnMenuBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     btnMenuBG->setOpacity(100);
     btnMenuBG->setContentSize(CCSize(400, 80));
-    btnMenuBG->setScale(.65);
+    btnMenuBG->setScale(.65f);
     btnMenuBG->setPosition(m_pButtonMenu->getPosition());
 
     addChild(btnMenuBG);
 
     // set tags
-    for(int i = 0; i < m_pButtonMenu->getChildrenCount(); i++) {
+    for(size_t i = 0; i < m_pButtonMenu->getChildrenCount(); i++) {
         reinterpret_cast<gd::CCMenuItemSpriteExtra*>(m_pButtonMenu->getChildren()->objectAtIndex(i))->setTag(i + 1);
     }
 
@@ -138,7 +138,7 @@ void GatoBotMenu::buttonHovered(gd::CCMenuItemSpriteExtra* btn) {
     auto bot = GatoBot::sharedState();
     int index = btn->getTag() - 1;
 
-    if(index < buttonLabels.size()) {
+    if(index < (int)buttonLabels.size()) {
         const char* str = buttonLabels[index];
 
         // garbaj

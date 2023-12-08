@@ -18,7 +18,7 @@ returntype __fastcall GBHooks::funcname##H(selftype self, uintptr_t, ##__VA_ARGS
 // replace MH_CreateHook function if using geode lol
 #ifdef GB_GEODE
 #define GB_CreateHook(addr, _hook, orig) \
-    Mod::get()->addHook(reinterpret_cast<void*>(addr), &GBHooks::_hook, GEODE_CONCAT("GatoBot -> ", GEODE_STR(_hook)), tulip::hook::TulipConvention::Thiscall); \
+    (void)Mod::get()->addHook(reinterpret_cast<void*>(addr), &GBHooks::_hook, GEODE_CONCAT("GatoBot -> ", GEODE_STR(_hook)), tulip::hook::TulipConvention::Thiscall); \
     orig = reinterpret_cast<decltype(orig)>(addr)
 #else
 #define GB_CreateHook(addr, hook, orig) \
@@ -75,8 +75,6 @@ HOOKDEF(bool, PlayLayer_init, gd::PlayLayer*, gd::GJGameLevel* level) {
 }
 
 HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*) {
-    PauseLayer_customSetupO(self);
-
     auto bot = GatoBot::sharedState();
 
     if(!bot->loadedHooks)
@@ -84,6 +82,8 @@ HOOKDEF(void, PauseLayer_customSetup, gd::PauseLayer*) {
 
     bot->currentPauseLayer = self;
     bot->gamePaused = true;
+
+    PauseLayer_customSetupO(self);
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
@@ -121,7 +121,7 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
     auto bot = GatoBot::sharedState();
 
     // disable practice mode
-    if(bot->status == Replaying || bot->status == Rendering && self->m_isPracticeMode) {
+    if(bot->isPlaybackStatus() && self->m_isPracticeMode) {
         self->togglePracticeMode(false);
         bot->practiceCheckpoints.clear();
     }
@@ -152,8 +152,6 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
             }
             
             // jump?
-            // MBO(bool, self, 0x2A9) && !rightSide && twoPlayer
-
             if(bot->levelFrames.back().player1.isHolding != MBO(bool, self->m_pPlayer1, 0x611)) {
                 if(MBO(bool, self->m_pPlayer1, 0x611)) {
                     bot->levelFrames.back().player1.action = Pressed;
@@ -188,6 +186,8 @@ HOOKDEF(void, PlayLayer_resetLevel, gd::PlayLayer*) {
         bot->currentFrame = 0;
         bot->timeFromStart = 0;
 
+        bot->clickSounds.clear();
+
         // update music offset
         bot->currentMusicOffset = bot->getTimeForXPos(self) + MBO(float, self->m_pLevelSettings, 0xFC); // timeForXPos + songOffset
     }
@@ -198,7 +198,7 @@ HOOKDEF(void, PlayLayer_destroyPlayer, gd::PlayLayer*, gd::PlayerObject* player,
 
     auto bot = GatoBot::sharedState();
 
-    if((bot->status == Replaying || bot->status == Rendering) && MBO(bool, self, 0x39C))
+    if((bot->isPlaybackStatus()) && MBO(bool, self, 0x39C))
         bot->resetBasicVariables(true);
 }
 
@@ -254,7 +254,7 @@ HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
 
         kmGLPushMatrix();
 
-        // draw status label
+        // draw labels
         if(bot->statusLabel != nullptr) bot->statusLabel->visit();
         if(bot->exitLabel != nullptr) bot->exitLabel->visit();
 
@@ -268,6 +268,16 @@ HOOKDEF(void, CCDirector_drawScene, CCDirector*) {
     }
     else CCDirector_drawSceneO(self);
 }
+
+/*HOOKDEF(void, CCDisplayLinkDirector_mainLoop, CCDisplayLinkDirector*) {
+    auto bot = GatoBot::sharedState();
+
+    if(bot->status == Rendering) {
+        bot->renderingLoop([&] { CCDisplayLinkDirector_mainLoopO(self); });
+    }
+
+    CCDisplayLinkDirector_mainLoopO(self);
+}*/
 
 // setup
 void GBHooks::mem_init() {
@@ -342,6 +352,13 @@ void GBHooks::mem_init() {
         CCDirector_drawSceneH,
         CCDirector_drawSceneO
     );
+
+    // CCDisplayLinkDirector::mainLoop
+    /*GB_CreateHook(
+        reinterpret_cast<size_t>(bot->cocosBaseAddr) + 0xffb10,
+        CCDisplayLinkDirector_mainLoopH,
+        CCDisplayLinkDirector_mainLoopO
+    );*/
 
     #ifndef GB_GEODE
     MH_EnableHook(MH_ALL_HOOKS);

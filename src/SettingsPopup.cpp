@@ -3,7 +3,7 @@
 
 #include <nfd.h>
 
-extension::CCScale9Sprite* SettingsPopup::createTextInput(const char* caption, int maxchars, int width, int height, const char* charFilter = nullptr, CCPoint pos = CCPointZero, float scale = .4f, const char* font = "bigFont.fnt") {
+extension::CCScale9Sprite* SettingsPopup::createTextInput(const char* caption, int maxchars, float width, float height, const char* charFilter = nullptr, CCPoint pos = CCPointZero, float scale = .4f, const char* font = "bigFont.fnt") {
     // bitrate input
     auto inputBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     inputBG->setScale(scale);
@@ -47,11 +47,11 @@ void SettingsPopup::createToggle(const char* text, const char* helpText = nullpt
     // positioning
     auto togglePos = CCPoint(-210, 230);
 
-    int differenceY = 30 * toggles.size();
+    float differenceY = 30.f * (float)toggles.size();
     togglePos = togglePos + CCPoint(0, -differenceY);
 
     // checkbox
-    auto toggle = gd::CCMenuItemToggler::createWithStandardSprites(this, menu_selector(SettingsPopup::onToggle), .8);
+    auto toggle = gd::CCMenuItemToggler::createWithStandardSprites(this, menu_selector(SettingsPopup::onToggle), .8f);
     toggle->setPosition(togglePos);
     
     toggle->setTag(toggles.size());
@@ -64,7 +64,7 @@ void SettingsPopup::createToggle(const char* text, const char* helpText = nullpt
 
     // help button
     if(helpText != nullptr) {
-        auto helpBtn = createHelpBtn(helpText, togglePos + CCPoint(-20, 10), .35);
+        auto helpBtn = createHelpBtn(helpText, togglePos + CCPoint(-20, 10), .35f);
 
         helpBtn->removeFromParentAndCleanup(false);
         cell->addHelpButton(helpBtn);
@@ -75,8 +75,8 @@ void SettingsPopup::createToggle(const char* text, const char* helpText = nullpt
 }
 
 void SettingsPopup::createCodecBtn(const char* caption, const char* bg, const char* codec, CCPoint pos) {
-    auto spr = gd::ButtonSprite::create(caption, 60, true, "bigFont.fnt", bg, 40, .8);
-    spr->setScale(.4);
+    auto spr = gd::ButtonSprite::create(caption, 60, true, "bigFont.fnt", bg, 40, .8f);
+    spr->setScale(.4f);
     auto btn = gd::CCMenuItemSpriteExtra::create(spr, this, menu_selector(SettingsPopup::onCodec));
     btn->setPosition(pos);
 
@@ -87,8 +87,8 @@ void SettingsPopup::createCodecBtn(const char* caption, const char* bg, const ch
 }
 
 void SettingsPopup::createResBtn(const char* caption, const char* bg, ResolutionSize res) {
-    auto spr = gd::ButtonSprite::create(caption, 60, true, "bigFont.fnt", bg, 40, .8);
-    spr->setScale(.4);
+    auto spr = gd::ButtonSprite::create(caption, 60, true, "bigFont.fnt", bg, 40, .8f);
+    spr->setScale(.4f);
     auto btn = gd::CCMenuItemSpriteExtra::create(spr, this, menu_selector(SettingsPopup::onResolution));
 
     btn->setTag(resolutions.size());
@@ -145,7 +145,7 @@ bool SettingsPopup::init() {
 
     // bitrate label
     auto bitrateLabel = CCLabelBMFont::create("Video Bitrate (kbps):", "bigFont.fnt");
-    bitrateLabel->setScale(.3);
+    bitrateLabel->setScale(.3f);
     bitrateLabel->setPosition(winSize.width / 2 + 160, winSize.height / 2 + 105);
 
     m_pLayer->addChild(bitrateLabel, 1);
@@ -165,7 +165,7 @@ bool SettingsPopup::init() {
     textInputs.back()->setString(bot->settings.getOption<std::string>("codec").c_str());
 
     // codec help
-    createHelpBtn("Which codec to use when encoding the video\n<cb>Intel (CPU) - uses the default h264 codec to encode</c>\n<cg>NVIDIA (GPU) - uses the h264 NVENC codec to encode</c>\n<cr>AMD (GPU) - uses the h264 AMF codec to encode</c>\n<cy>Using NVENC or AMF is usually faster</c>\nYou can also use other codecs, like HEVC (<cy>for 8K videos</c>)", textInputs[1]->getPosition() + CCPoint(50, 25), .6);
+    createHelpBtn("Which codec to use when encoding the video\n<cb>Intel (CPU) - uses the default h264 codec to encode</c>\n<cg>NVIDIA (GPU) - uses the h264 NVENC codec to encode</c>\n<cr>AMD (GPU) - uses the h264 AMF codec to encode</c>\n<cy>Using NVENC or AMF is usually faster</c>\nYou can also use other codecs, like HEVC (<cy>for 8K videos</c>)", textInputs[1]->getPosition() + CCPoint(50, 25), .6f);
 
     // codec buttons
     createCodecBtn("Intel", "GJ_button_02.png", "h264", {120, 55});
@@ -198,7 +198,7 @@ bool SettingsPopup::init() {
 
     // resolution input
     auto resLabel = CCLabelBMFont::create("Resolution", "bigFont.fnt");
-    resLabel->setScale(.45);
+    resLabel->setScale(.45f);
     resLabel->setPosition(winSize.width / 2, winSize.height / 2 + 85);
 
     m_pLayer->addChild(resLabel, 8);
@@ -208,7 +208,7 @@ bool SettingsPopup::init() {
     // resolution presets
     auto resScrollLayerBG = extension::CCScale9Sprite::create("square02_001.png", {0, 0, 80, 80});
     resScrollLayerBG->setOpacity(100);
-    resScrollLayerBG->setScale(.3);
+    resScrollLayerBG->setScale(.3f);
     resScrollLayerBG->setContentSize({440, 80});
 
     resScrollLayer = SettingsPopupScrollLayer::create({130, 60});
@@ -232,10 +232,11 @@ bool SettingsPopup::init() {
     m_pLayer->addChild(resScrollLayerBG, 5);
 
     // file path
-    createTextInput("output path", MAX_PATH, 110, 60, nullptr, m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(CCPoint(-15, 80))), .4, "chatFont.fnt");
+    createTextInput("output path", MAX_PATH, 110, 60, nullptr, m_pLayer->convertToNodeSpace(m_pButtonMenu->convertToWorldSpace(CCPoint(-15, 80))), .4f, "chatFont.fnt");
     auto filePathInput = textInputs.back();
     filePathInput->setDelegate(this);
     filePathInput->setVisible(false);
+    filePathInput->setAllowedChars("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ,/\\{}[]()&%!?\"#¤$€:;'*^¨~+<>|.-_");
 
     filePathArea = gd::TextArea::create("chatFont.fnt", true, "file path", 1, 160, 15, CCPoint(.5, .5));
     filePathArea->setPosition(filePathInput->getPosition());
@@ -256,7 +257,7 @@ bool SettingsPopup::init() {
 
     // audio bitrate input
     auto audioBitrateLabel = CCLabelBMFont::create("Audio Bitrate (kbps):", "bigFont.fnt");
-    audioBitrateLabel->setScale(.3);
+    audioBitrateLabel->setScale(.3f);
     audioBitrateLabel->setPosition(winSize.width / 2 + 160, winSize.height / 2 + 50);
 
     m_pLayer->addChild(audioBitrateLabel, 1);
@@ -269,16 +270,16 @@ bool SettingsPopup::init() {
     //textInputs[7]->setString(bot->settings.extraArguments.c_str());
 
     // game fps
-    createTextInput("FPS", 4, 60, 30, "0123456789", winSize / 2 + CCPoint(40, 17.5), .35);
+    createTextInput("FPS", 4, 60, 30, "0123456789", winSize / 2 + CCPoint(40, 17.5), .35f);
     textInputs.back()->setString(std::to_string(bot->getCurrentFPS()).c_str());
 
     auto fpsLabel = CCLabelBMFont::create("Game FPS:", "bigFont.fnt");
     fpsLabel->setPosition(winSize / 2 + CCPoint(-40, 17.5));
-    fpsLabel->limitLabelWidth(80, 1, .1);
+    fpsLabel->limitLabelWidth(80, 1, .1f);
     m_pLayer->addChild(fpsLabel, 2);
 
     // delay input
-    delayInputBG = createTextInput("end delay (s)", 8, 50, 30, "012345679.", winSize / 2 + CCPoint(-200, -90), .3);
+    delayInputBG = createTextInput("end delay (s)", 8, 50, 30, "012345679.", winSize / 2 + CCPoint(-200, -90), .3f);
     delayInput = textInputs.back();
 
     delayInputBG->setVisible(false);
@@ -338,9 +339,9 @@ void SettingsPopup::createResInputs(CCPoint position) {
     auto frameSize = dir->getOpenGLView()->getFrameSize();
     auto winSize = dir->getWinSize();
 
-    createTextInput("width", 4, 30, 15, "0123456789", position + CCPoint(-50, 0), .2);
-    createTextInput("height", 4, 30, 15, "0123456789", position, .2);
-    createTextInput("FPS", 3, 30, 15, "0123456789", position + CCPoint(50, 0), .2);
+    createTextInput("width", 4, 30, 15, "0123456789", position + CCPoint(-50, 0), .2f);
+    createTextInput("height", 4, 30, 15, "0123456789", position, .2f);
+    createTextInput("FPS", 3, 30, 15, "0123456789", position + CCPoint(50, 0), .2f);
 
     // labels
     auto xLabel = CCLabelBMFont::create("x", "bigFont.fnt");

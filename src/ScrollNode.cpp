@@ -31,7 +31,7 @@ bool GBOptionCell::init(gd::CCMenuItemToggler* toggle, const char* lText) {
 
     // label
     auto label = CCLabelBMFont::create(lText, "bigFont.fnt");
-    label->setScale(.3);
+    label->setScale(.3f);
     label->setAlignment(CCTextAlignment::kCCTextAlignmentLeft);
     label->setAnchorPoint(CCPoint(0, .5));
     label->setPosition(CCPoint(40, CELLHEIGHT / 2));
@@ -152,7 +152,7 @@ void SettingsPopupScrollLayer::setPosition(CCPoint const& newPos) {
 
 void SettingsPopupScrollLayer::setupList() {
     // order cells
-    int itemAmt = cells->getChildrenCount();
+    size_t itemAmt = cells->getChildrenCount();
     for(size_t i = 0; i < itemAmt; i++) {
         auto cell = (GBOptionCell*)cells->getChildren()->objectAtIndex(i);
         

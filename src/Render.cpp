@@ -5,7 +5,11 @@
 #include <ShlObj.h>
 #include <fmod/fmod.hpp>
 
-#define logRender(renderLogs) if(GatoBot::sharedState()->settings.getOption<bool>("showConsoleWindow")) std::cout << renderLogs << "\n"
+#ifndef GB_DEBUG
+#define logRender(renderLogs) if(GatoBot::sharedState()->settings.getOption<bool>("showConsoleWindow")) std::cout << renderLogs << "\n" 
+#else
+#define logRender(renderLogs) std::cout << renderLogs << "\n"
+#endif
 
 std::mutex RenderThreadLock;
 
@@ -16,7 +20,6 @@ bool GatoBot::updateRendering(float& dt) {
     bool hasData = currentFrameHasData;
     RenderThreadLock.unlock();
 
-    // wait for next frame
     if(hasData)
         return false;
 
@@ -31,8 +34,7 @@ bool GatoBot::updateRendering(float& dt) {
     updateReplaying();
 
     int frameFactor = settings.getOption<int>("frameFactor");
-    if(
-        (currentFrame % frameFactor == 0 || currentFrame == 0)
+    if((currentFrame % frameFactor == 0 || currentFrame == 0)
      && !MBO(bool, pLayer, 0x39C)
      && MBO(bool, pLayer, 0x2EC)
     ) {
@@ -71,7 +73,8 @@ void GatoBot::renderFrame() {
     /* 
         Get frame data 
     */
-    // stolen from CCRenderTexture lmao 
+    // (stolen from CCRenderTexture lmao)
+    // set viewport of custom res
     glViewport(0, 0, frameW, frameH);
 
     glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &m_pOldFBO);
@@ -79,7 +82,7 @@ void GatoBot::renderFrame() {
         
     visitPlayLayer(); // draw PlayLayer
 
-    // pixels
+    // read pixels
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, frameW, frameH, GL_RGBA, GL_UNSIGNED_BYTE, frameData.data());
 
@@ -220,26 +223,25 @@ void GatoBot::visitPlayLayer() {
     kmGLPopMatrix();
 }
 
-void renderingThread() {
-    auto bot = GatoBot::sharedState();
-    auto dir = CCDirector::sharedDirector();
-
-    int frameW = bot->settings.getOption<int>("targetWidth");
-    int frameH = bot->settings.getOption<int>("targetHeight");
-
-    auto pLayer = gd::GameManager::sharedState()->getPlayLayer();
-    auto levelData = pLayer->m_level;    
-
-    auto levelSettings = pLayer->m_pLevelSettings;
-
+FFmpegSettings GatoBot::setupFFmpegSettings() {
     FFmpegSettings cmd;
 
-    cmd.frameWidth = frameW;
-    cmd.frameHeight = frameH;
-    cmd.fps = bot->settings.getOption<int>("targetFPS");
+    auto dir = CCDirector::sharedDirector();
+    auto pLayer = gd::GameManager::sharedState()->getPlayLayer();
+    auto levelData = pLayer->m_level; 
 
+    cmd.frameWidth = settings.getOption<int>("targetWidth");
+    cmd.frameHeight = settings.getOption<int>("targetHeight");
+
+    cmd.fps = settings.getOption<int>("targetFPS");
+    cmd.bitrate = settings.getOption<int>("vBitrate");
+    cmd.audioBitrate = settings.getOption<int>("aBitrate");
+    cmd.codec = settings.getOption<std::string>("codec");
+    cmd.extraArgs = settings.getOption<std::string>("extraArgs");
+
+    // song
     std::string songPath;
-    if(bot->settings.getOption<bool>("includeLevelSong")) {
+    if(settings.getOption<bool>("includeLevelSong")) {
         songPath = levelData->getAudioFileName();
 
         if(songPath.find("\\") == songPath.npos) {
@@ -247,93 +249,113 @@ void renderingThread() {
         }
     }
 
-    if(bot->settings.getOption<bool>("includeLevelSong") && !songPath.empty() && std::filesystem::exists(songPath)) {
+    // output path
+    if(settings.getOption<bool>("includeLevelSong") && !songPath.empty() && std::filesystem::exists(songPath)) {
         cmd.tempPath = std::filesystem::temp_directory_path().string() + std::string("gatobottemp.mp4");
-        cmd.path = bot->settings.getOption<std::string>("outputPath");
+        cmd.path = settings.getOption<std::string>("outputPath");
+
+        cmd.songPath = songPath;
+        cmd.songOffset = &currentMusicOffset;
+        cmd.time = &timeFromStart;
     }
     else {
-        cmd.tempPath = bot->settings.getOption<std::string>("outputPath");
+        cmd.tempPath = settings.getOption<std::string>("outputPath");
     }
 
-    cmd.bitrate = bot->settings.getOption<int>("vBitrate");
-    cmd.audioBitrate = bot->settings.getOption<int>("aBitrate");
-    cmd.codec = bot->settings.getOption<std::string>("codec");
-    cmd.extraArgs = bot->settings.getOption<std::string>("extraArgs");
+    return cmd;
+}
 
-    logRender(cmd.getCommandStr());
-    DWORD creationFlag = bot->settings.getOption<bool>("showConsoleWindow") ? 0 : CREATE_NO_WINDOW;
-    auto process = subprocess::Popen(cmd.getCommandStr(), creationFlag);
+void GatoBot::renderingLoop() {
+    bool endLoopForced = false;
+
+    logRender("Starting rendering loop");
+
+    auto renderSettings = setupFFmpegSettings();
+    logRender(renderSettings.getCommandStr());
+
+    // create ffmpeg process
+    DWORD creationFlag = settings.getOption<bool>("showConsoleWindow") ? 0 : CREATE_NO_WINDOW;
+    auto process = subprocess::Popen(renderSettings.getCommandStr(), creationFlag);
 
     // rendering loop
-    while(bot->status == Rendering || bot->currentFrameHasData) {
-        // check if error occured
-        if(process.getExitCode() == 1) {
-            bot->lastInfoCode = 1;
-            bot->changeStatus(Disabled);
-                
+    RenderThreadLock.lock();
+    while(status == Rendering || currentFrameHasData) {
+        // check for errors
+        if (process.getExitCode() == 1) {
+            lastInfoCode = 1;
+            changeStatus(Disabled);
+
+            endLoopForced = true;
+            RenderThreadLock.unlock();
             break;
         }
 
-        RenderThreadLock.lock();
-        if(bot->currentFrameHasData) {
-            const auto frameData = bot->currentFrameData;
-            bot->currentFrameData.clear();
-            bot->currentFrameHasData = false;
+        if(currentFrameHasData) {
+            const auto data = currentFrameData;
+            currentFrameData.clear();
+            currentFrameHasData = false;
 
-            // write frame data to ffmpeg
-            process.m_stdin.write(frameData.data(), frameData.size());
-        } 
+            RenderThreadLock.unlock();
 
+            // send data to ffmpeg
+            process.m_stdin.write(data.data(), data.size());
+        }
+        
         RenderThreadLock.unlock();
     }
 
-    RenderThreadLock.lock();
-    bot->updateStatusLabel();
-    bot->lastInfoCode = 2;
-    RenderThreadLock.unlock();
+    if (!endLoopForced) {
+        updateStatusLabel();
 
-    int errCode = process.close();
-    if(errCode) {
-        logRender("ffmpeg error :sob:");
-        bot->lastInfoCode = 1;
-        return;
+        // loading circle
+        lastInfoCode = 2;
+        checkErrors();
+
+        GBLoadingCircle::setCaption("Rendering video...");
+
+        // stop rendering video
+        if(process.close()) {
+            logRender("ffmpeg error :sob:");
+            lastInfoCode = 1;
+            checkErrors();
+
+            return;
+        }
+
+        // add music
+        this->addMusic(renderSettings);
     }
 
-    if(bot->settings.getOption<bool>("includeLevelSong") && !songPath.empty() && std::filesystem::exists(songPath)) {
-        cmd.songPath = songPath;
-        cmd.songOffset = bot->currentMusicOffset;
-        cmd.time = bot->timeFromStart;
+    logRender("Rendering video finished with code " << endLoopForced);
+}
 
-        auto songCmd = cmd.getSongCmdStr();
+void GatoBot::addMusic(FFmpegSettings& renderSettings) {
+    DWORD creationFlag = settings.getOption<bool>("showConsoleWindow") ? 0 : CREATE_NO_WINDOW;
 
+    if(!renderSettings.songPath.empty() && std::filesystem::exists(renderSettings.songPath)) {
+        auto songCmd = renderSettings.getSongCmdStr();
         logRender(songCmd);
 
         int retCode = subprocess::Popen(songCmd, creationFlag).close();
 
-        std::filesystem::remove(cmd.tempPath); // delete temp
+        std::filesystem::remove(renderSettings.tempPath); // delete temp
 
-        if (retCode) {
+        if(retCode) {
             logRender("Adding audio failed");
+            lastInfoCode = 1;
             return;
         }
     }
 
-    logRender("Rendering video finished");
+    lastInfoCode = 3;
+    checkErrors();
 
     // open folder
-    auto path = ILCreateFromPath(bot->settings.getOption<std::string>("outputPath").c_str());
+    auto path = ILCreateFromPath(settings.getOption<std::string>("outputPath").c_str());
     if(path) {
         SHOpenFolderAndSelectItems(path, 0, 0, 0);
         ILFree(path);
     }
-
-    // remove circle
-    RenderThreadLock.lock();
-    bot->lastInfoCode = 3;
-    bot->status = Disabled;
-    RenderThreadLock.unlock();
-
-    logRender("Rendering thread finished");
 }
 
 void GatoBot::toggleRendering(bool toggled) {
@@ -372,6 +394,7 @@ void GatoBot::toggleRendering(bool toggled) {
         currentFrame = 0;
         currentFrameData.clear();
         currentFrameHasData = false;
+        clickSounds.clear();
 
         // make resolution even if it somehow isn't
         int targetWidth = settings.getOption<int>("targetWidth");
@@ -396,6 +419,8 @@ void GatoBot::toggleRendering(bool toggled) {
 
         free(data);
 
+        currentFrameData.resize(targetWidth * targetHeight * 4);
+
         glGetIntegerv(GL_RENDERBUFFER_BINDING_EXT, &m_pOldRBO);
         glGenFramebuffersEXT(1, &m_pFBO);
         glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pFBO);
@@ -408,13 +433,12 @@ void GatoBot::toggleRendering(bool toggled) {
         glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_pOldFBO);
         glBindFramebufferEXT(GL_RENDERBUFFER_EXT, m_pOldRBO);
 
-        toggleGameFPSCap(false);
         totalRenderTimeStart = std::clock();
 
         botStatusChanged();
 
-        // start rendering thread
-        std::thread(renderingThread).detach();
+        //settings.setOption("includeLevelClicks", true); // temp
+        std::thread(&GatoBot::renderingLoop, this).detach();
     }
     else {
         if(isDelayedRendering())
@@ -425,7 +449,6 @@ void GatoBot::toggleRendering(bool toggled) {
             renderingTexture = nullptr;
         }
 
-        toggleGameFPSCap(true);
         CCDirector::sharedDirector()->setAnimationInterval(lastSPF);
 
         pauseLevel();
@@ -443,4 +466,10 @@ bool GatoBot::isDelayedRendering() {
         return false;
 
     return timeFromStart - endDelayStart <= settings.getOption<float>("renderDelay");
+}
+
+void GatoBot::processClickSound(ButtonType button) {
+    if(status == Rendering) {
+        clickSounds.push_back({ timeFromStart, button });
+    }
 }

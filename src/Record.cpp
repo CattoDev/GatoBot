@@ -131,17 +131,30 @@ void GatoBot::saveReplay(std::string& filePath) {
 }
 
 bool GatoBot::handleClick(gd::GJBaseGameLayer* self, bool rightSide, ButtonType btnType) {
-    if(status != Recording) return true;
-    
     bool twoPlayer = MBO(bool, self->m_pLevelSettings, 0xFA);
-
     bool playerIsDead = MBO(bool, self, 0x39C);
+    bool isPlayer2 = MBO(bool, self, 0x2A9) && !rightSide && twoPlayer;
 
-    if(status == Recording && !playerIsDead) {
-        if(MBO(bool, self, 0x2A9) && !rightSide && twoPlayer)
-            queuedBtnP2 = btnType;
+    if(status != Disabled && !playerIsDead) {
+        if(status == Recording) {
+            if(isPlayer2)
+                queuedBtnP2 = btnType;
 
-        else queuedBtnP1 = btnType;
+            else queuedBtnP1 = btnType;
+        }
+        else {
+            // cancel clicks when replaying / rendering
+            if((!isPlayer2 && queuedBtnP1 != None)) {
+                queuedBtnP1 = None;
+                return true;
+            }
+            if((isPlayer2 && queuedBtnP2 != None)) {
+                queuedBtnP2 = None;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     return true;
