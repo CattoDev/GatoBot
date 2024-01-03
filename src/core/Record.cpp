@@ -8,13 +8,11 @@ void GatoBot::updateRecording() {
 
     auto pLayer = this->getPlayLayer();
 
-    //GB_LOG("Record frame {}", m_currentFrame);
+    //auto p1 = TEMP_MBO(CCSpritePlus*, pLayer, 0x870); // player1 (GJBaseGameLayer::createPlayer)
+    //auto p2 = TEMP_MBO(CCSpritePlus*, pLayer, 0x874); // player2 (GJBaseGameLayer::createPlayer)
 
-    auto p1 = TEMP_MBO(CCSpritePlus*, pLayer, 0x870); // player1 (GJBaseGameLayer::createPlayer)
-    auto p2 = TEMP_MBO(CCSpritePlus*, pLayer, 0x874); // player2 (GJBaseGameLayer::createPlayer)
-
-    auto p1pos = TEMP_MBO(CCPoint, p1, 0x81C);
-    auto p2pos = TEMP_MBO(CCPoint, p2, 0x81C);
+    auto p1pos = TEMP_MBO(CCPoint, pLayer->m_player1, 0x81C);
+    auto p2pos = TEMP_MBO(CCPoint, pLayer->m_player2, 0x81C);
 
     PlayerData player1 {
         p1pos.x,

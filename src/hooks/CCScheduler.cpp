@@ -12,7 +12,5 @@ class $modify(CCScheduler) {
         if(bot->updatePlayLayer(dt)) {
             CCScheduler::update(dt);
         }
-
-        //CCScheduler::update(dt);
     }
 };

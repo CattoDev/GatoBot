@@ -18,12 +18,9 @@ void GatoBot::updateReplaying() {
     // get frame
     const auto frame = m_loadedMacro.getFrame(m_currentFrame);
 
-    auto p1 = TEMP_MBO(PlayerObject*, pLayer, 0x870); // player1 (GJBaseGameLayer::createPlayer)
-    auto p2 = TEMP_MBO(PlayerObject*, pLayer, 0x874); // player2 (GJBaseGameLayer::createPlayer)
-
     // set player positions
-    setPlayerPosition(p1, CCPoint { frame.m_player1.m_posX, frame.m_player1.m_posY });
-    setPlayerPosition(p2, CCPoint { frame.m_player2.m_posX, frame.m_player2.m_posY });
+    setPlayerPosition(pLayer->m_player1, CCPoint { frame.m_player1.m_posX, frame.m_player1.m_posY });
+    setPlayerPosition(pLayer->m_player2, CCPoint { frame.m_player2.m_posX, frame.m_player2.m_posY });
 
     // queue buttons
     if(frame.m_commands.size()) {

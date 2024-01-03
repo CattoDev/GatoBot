@@ -32,7 +32,6 @@ std::string statToStr(BotStatus stat) {
 GatoBot* GatoBot::get() {
     if(!g_instance) {
         g_instance = new GatoBot();
-        //g_instance->m_allFrames.reserve(100000); // allocate
     }
 
     return g_instance;
@@ -45,30 +44,43 @@ PlayLayer* GatoBot::getPlayLayer() {
 void GatoBot::changeStatus(BotStatus newStatus) {
     if(m_status == newStatus) return;
 
-    /*
-        TODO: rewrite this entire function
-    */
-
-    GB_LOG("Changing status: {} -> {} ({})", std::to_string(m_status), std::to_string(newStatus), statToStr(newStatus));
-
-    if(newStatus == Recording) {
-        this->resetMacro();
-
-        // debug
-        CCScheduler::get()->setTimeScale(.25f);
-    }
-    if(newStatus == Replaying) {
-        GB_LOG("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
+    // switch to idle first if not already
+    if(m_status != Idle && newStatus != Idle) {
+        this->changeStatus(BotStatus::Idle);
+        this->changeStatus(newStatus);
+        
+        return;
     }
 
-    if(newStatus != Idle && m_status == Idle) {
+    switch(newStatus) {
+        case Recording: {
+            this->resetMacro();
+        } break;
+
+        case Replaying: {
+            GB_LOG("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
+        } break;
+
+        case Rendering: {
+            
+        } break;
+        
+        default: { // Idle
+            this->botFinished();
+        } break;
+    }
+
+    if(newStatus != Idle) {
+        // save animation interval (SPF)
         m_firstSPF = CCDirector::sharedDirector()->getAnimationInterval();
-    }
-    else {
-        this->botFinished();
+
+        // restart attempt
+        if(auto pLayer = this->getPlayLayer()) {
+            //pLayer->resetLevel();
+        }
     }
 
-    //GB_LOG("m_allFrames: {}", m_loadedMacro.getFrameCount());
+    GB_LOG("Changed status {} => {}", statToStr(m_status).c_str(), statToStr(newStatus).c_str());
 
     m_status = newStatus;
 }
@@ -141,7 +153,6 @@ void GatoBot::updateCommon(float& dt) {
         // out of frames
         if(m_currentFrame >= m_loadedMacro.getFrameCount()) {
             this->changeStatus(BotStatus::Idle);
-            this->botFinished();
             return;
         }
     }
@@ -153,8 +164,6 @@ void GatoBot::updateCommon(float& dt) {
     float newInterval = deltaTime / timeScale;
     dt = newInterval;
     CCDirector::sharedDirector()->setAnimationInterval(newInterval);
-
-    //GB_LOG("new SPF: {} ({} FPS)", newInterval, std::round(1.f / newInterval));
 }
 
 void GatoBot::onLevelReset() {
@@ -184,6 +193,14 @@ void GatoBot::checkpointLoaded(int frame) {
 }
 
 void GatoBot::botFinished() {
+    GB_LOG("botFinished => m_firstSPF: {}", m_firstSPF);
+
     CCDirector::sharedDirector()->setAnimationInterval(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);
+}
+
+void GatoBot::finishPlayback() {
+    if(!this->isPlayback()) return;
+
+    this->changeStatus(BotStatus::Idle);
 }

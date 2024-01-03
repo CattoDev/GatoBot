@@ -39,4 +39,5 @@ public:
     void onLevelReset();
     void checkpointLoaded(int frame);
     void botFinished();
+    void finishPlayback();
 };

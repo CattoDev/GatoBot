@@ -20,6 +20,7 @@ LevelFrame& Macro::getFrame(int frame) {
 void Macro::clearFramesAfter(int frame) {
     GB_LOG("Macro::clearFramesAfter {} ({})", frame, m_allFrames.size());
 
+    frame = std::min(frame, this->getFrameCount());
     m_allFrames.erase(m_allFrames.begin() + frame, m_allFrames.end());
 }
 

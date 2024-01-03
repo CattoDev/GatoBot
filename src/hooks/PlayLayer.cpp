@@ -10,7 +10,16 @@ using namespace geode::prelude;
 
 class $modify(PlayLayer) {
     void resetLevel() {
+        // fix button release on restart
+        auto buttons = TEMP_MBO(std::vector<PlayerButtonCommand>, this, 0x2B48);
+
         PlayLayer::resetLevel();
+
+        for(auto& cmd : buttons) {
+            if(!cmd.m_holding) {
+                this->queueButton(cmd.m_button, cmd.m_holding, cmd.m_rightSide);
+            }
+        }
 
         GatoBot::get()->onLevelReset();
     }
@@ -18,7 +27,10 @@ class $modify(PlayLayer) {
     void loadFromCheckpoint(CheckpointObject* obj) {
         PlayLayer::loadFromCheckpoint(obj);
 
-        if(!obj) return;
+        if(!obj) {
+            GB_LOG("loadFromCheckpoint called with an empty object?");
+            return;
+        }
 
         auto checkpoint = as<GBCheckpoint*>(obj);
         
