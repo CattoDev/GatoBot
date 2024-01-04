@@ -164,6 +164,14 @@ void GatoBot::updateCommon(float& dt) {
     float newInterval = deltaTime / timeScale;
     dt = newInterval;
     CCDirector::sharedDirector()->setAnimationInterval(newInterval);
+
+    // delta
+    /*if(this->isPlayback()) {
+        auto pLayer = this->getPlayLayer();
+        TEMP_MBO(double, pLayer, 0x2ac0) = 0;
+        TEMP_MBO(int, pLayer, 0x2afc) = 0;
+        TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
+    }*/
 }
 
 void GatoBot::onLevelReset() {
@@ -177,7 +185,7 @@ void GatoBot::onLevelReset() {
     if(m_status == Recording) {
         if(!practiceMode || !checkpoints->count()) {
             m_currentFrame = 0;
-            m_loadedMacro.clearFramesAfter(0);
+            m_loadedMacro.clearFramesFrom(0);
         }
     }
     else {
@@ -188,8 +196,16 @@ void GatoBot::onLevelReset() {
 void GatoBot::checkpointLoaded(int frame) {
     GB_LOG("checkpointLoaded: {}", frame);
 
-    m_loadedMacro.clearFramesAfter(frame);
+    m_loadedMacro.clearFramesFrom(frame);
     m_currentFrame = frame;
+
+    // reset delta time values
+    auto pLayer = this->getPlayLayer();
+    const auto lastFrame = m_loadedMacro.getFrame(frame - 1);
+
+    TEMP_MBO(double, pLayer, 0x2ac0) = lastFrame.m_unk1;
+    TEMP_MBO(int, pLayer, 0x2afc) = lastFrame.m_unk2;
+    TEMP_MBO(float, pLayer, 0x2d0) = lastFrame.m_unk3;
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {

@@ -40,7 +40,7 @@ LevelFrame& Macro::getFrame(int frame) {
     return m_allFrames[frame];
 }
 
-void Macro::clearFramesAfter(int frame) {
+void Macro::clearFramesFrom(int frame) {
     //GB_LOG("Macro::clearFramesAfter {} ({})", frame, m_allFrames.size());
 
     frame = std::min(frame, this->getFrameCount());
@@ -112,15 +112,24 @@ std::vector<unsigned char> convertFrame(const LevelFrame& frame) {
     /*
         FRAME FORMAT:
         - [1] {4 bytes} Frame index
-        - [2] {Player data size} Player 1 data
-        - [3] {Player data size} Player 2 data
-        - [4] {1 byte} Action count
-        - [5] {action size (3) * action count} Actions
+        - [2] {16} Delta time values
+            - {8 bytes} unk1 (double)
+            - {4 bytes} unk2 (int)
+            - {4 bytes} unk3 (float)
+        - [3] {Player data size} Player 1 data
+        - [4] {Player data size} Player 2 data
+        - [5] {1 byte} Action count
+        - [6] {action size (3) * action count} Actions
     */
     std::vector<unsigned char> frameData;
 
     // frame index
     addToByteVector(frameData, frame.m_frame);
+
+    // delta time values
+    addToByteVector(frameData, frame.m_unk1);
+    addToByteVector(frameData, frame.m_unk2);
+    addToByteVector(frameData, frame.m_unk3);
 
     // player datas
     auto addPlayerData = [&frameData](const PlayerData& playerData) {
@@ -207,7 +216,7 @@ void Macro::saveFile(std::string filePath) {
 
 void Macro::loadFile(std::string filePath) {
     // TEMP: clear before loading
-    this->clearFramesAfter(0);
+    this->clearFramesFrom(0);
 
     // read file
     std::ifstream file(filePath, std::ios::in | std::ios::binary);
@@ -231,6 +240,16 @@ void Macro::loadFile(std::string filePath) {
     for(size_t currentFrame = 0; currentFrame < frameCount; currentFrame++) {
         // frame index
         const int frame = readValFromBytesRaw<int>(ptr, currentFrameOffset);
+        currentFrameOffset += 0x4;
+
+        // get delta time values
+        auto unk1 = readValFromBytesRaw<double>(ptr, currentFrameOffset);
+        currentFrameOffset += 0x8;
+
+        auto unk2 = readValFromBytesRaw<int>(ptr, currentFrameOffset);
+        currentFrameOffset += 0x4;
+
+        auto unk3 = readValFromBytesRaw<float>(ptr, currentFrameOffset);
         currentFrameOffset += 0x4;
 
         // player 1 data
@@ -261,7 +280,7 @@ void Macro::loadFile(std::string filePath) {
             }
         }
 
-        m_allFrames.push_back({ frame, player1, player2, std::move(actions) });
+        m_allFrames.push_back({ frame, unk1, unk2, unk3, player1, player2, std::move(actions) });
     }
 
     GB_LOG("Macro: loaded {} frames", m_allFrames.size());

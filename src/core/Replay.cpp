@@ -18,6 +18,16 @@ void GatoBot::updateReplaying() {
     // get frame
     const auto frame = m_loadedMacro.getFrame(m_currentFrame);
 
+    // just debug
+    if(frame.m_frame != m_currentFrame) {
+        GB_LOGERR("FRAME MISMATCH {} != {}", frame.m_frame, m_currentFrame);
+    }
+
+    // set delta time values
+    TEMP_MBO(double, pLayer, 0x2ac0) = frame.m_unk1;
+    TEMP_MBO(int, pLayer, 0x2afc) = frame.m_unk2;
+    TEMP_MBO(float, pLayer, 0x2d0) = frame.m_unk3;
+
     // set player positions
     setPlayerPosition(pLayer->m_player1, CCPoint { frame.m_player1.m_posX, frame.m_player1.m_posY });
     setPlayerPosition(pLayer->m_player2, CCPoint { frame.m_player2.m_posX, frame.m_player2.m_posY });

@@ -12,7 +12,7 @@ public:
 
     void addFrame(LevelFrame& frame);
     LevelFrame& getFrame(int frame);
-    void clearFramesAfter(int frame);
+    void clearFramesFrom(int frame);
     int getFrameCount();
     float getDeltaTime();
 
