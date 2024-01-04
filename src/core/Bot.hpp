@@ -12,7 +12,8 @@
 #include <Geode/binding/PlayLayer.hpp>
 
 class GatoBot {
-private:
+//private:
+public:
     BotStatus m_status = BotStatus::Idle;
     Macro m_loadedMacro;
     int m_currentFrame = 0;

@@ -8,9 +8,7 @@ void GatoBot::updateRecording() {
 
     auto pLayer = this->getPlayLayer();
 
-    //auto p1 = TEMP_MBO(CCSpritePlus*, pLayer, 0x870); // player1 (GJBaseGameLayer::createPlayer)
-    //auto p2 = TEMP_MBO(CCSpritePlus*, pLayer, 0x874); // player2 (GJBaseGameLayer::createPlayer)
-
+    // get positions
     auto p1pos = TEMP_MBO(CCPoint, pLayer->m_player1, 0x81C);
     auto p2pos = TEMP_MBO(CCPoint, pLayer->m_player2, 0x81C);
 

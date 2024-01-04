@@ -24,6 +24,14 @@ class $modify(CCKeyboardDispatcher) {
 					GatoBot::get()->changeStatus(Idle);
 				} break;
 
+				case KEY_O: {
+					GatoBot::get()->m_loadedMacro.saveFile("C:/Programming/gdmods/GatoBot/macro.gatobot");
+				} break;
+
+				case KEY_P: {
+					GatoBot::get()->m_loadedMacro.loadFile("C:/Programming/gdmods/GatoBot/macro.gatobot");
+				} break;
+
 				default: 
 					break;
 			}

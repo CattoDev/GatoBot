@@ -15,4 +15,7 @@ public:
     void clearFramesAfter(int frame);
     int getFrameCount();
     float getDeltaTime();
+
+    void saveFile(std::string filePath);
+    void loadFile(std::string filePath);
 };
