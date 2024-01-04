@@ -14,12 +14,14 @@ void GatoBot::updateRecording() {
 
     PlayerData player1 {
         p1pos.x,
-        p1pos.y
+        p1pos.y,
+        TEMP_MBO(double, pLayer->m_player1, 0x798)
     };
 
     PlayerData player2 {
         p2pos.x,
-        p2pos.y
+        p2pos.y,
+        TEMP_MBO(double, pLayer->m_player2, 0x798)
     };
 
     // get queued buttons

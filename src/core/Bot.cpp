@@ -66,7 +66,7 @@ void GatoBot::changeStatus(BotStatus newStatus) {
         } break;
         
         default: { // Idle
-            this->botFinished();
+            this->botFinished(m_status);
         } break;
     }
 
@@ -192,11 +192,15 @@ void GatoBot::checkpointLoaded(int frame) {
     m_currentFrame = frame;
 }
 
-void GatoBot::botFinished() {
+void GatoBot::botFinished(BotStatus oldStatus) {
     GB_LOG("botFinished => m_firstSPF: {}", m_firstSPF);
 
     CCDirector::sharedDirector()->setAnimationInterval(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);
+
+    if(oldStatus == Recording) {
+        m_loadedMacro.recordingFinished();
+    }
 }
 
 void GatoBot::finishPlayback() {

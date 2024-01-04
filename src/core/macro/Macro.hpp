@@ -16,6 +16,8 @@ public:
     int getFrameCount();
     float getDeltaTime();
 
+    void recordingFinished();
+
     void saveFile(std::string filePath);
     void loadFile(std::string filePath);
 };

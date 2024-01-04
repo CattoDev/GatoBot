@@ -32,6 +32,10 @@ class $modify(CCKeyboardDispatcher) {
 					GatoBot::get()->m_loadedMacro.loadFile("C:/Programming/gdmods/GatoBot/macro.gatobot");
 				} break;
 
+				case KEY_F: {
+					GatoBot::get()->m_loadedMacro.recordingFinished();
+				} break;
+
 				default: 
 					break;
 			}

@@ -55,6 +55,59 @@ float Macro::getDeltaTime() {
     return 1.f / static_cast<float>(m_fps);
 }
 
+void Macro::recordingFinished() {
+    // fix commands
+    // <buttontype, <<frame, cmd>>>
+    std::map<int, std::vector<std::pair<int, PlayerButtonCommand>>> commands;
+    std::vector<int> buttonTypes;
+
+    for(auto& frame : m_allFrames) {
+        if(!frame.m_commands.size()) continue;
+
+        for(auto& cmd : frame.m_commands) {
+            if(!commands[cmd.m_button].size()) {
+                buttonTypes.push_back(cmd.m_button);
+            }
+
+            commands[cmd.m_button].push_back(std::make_pair(frame.m_frame, cmd));
+        }
+    }
+
+    for(auto& buttonType : buttonTypes) {
+        auto pairs = commands[buttonType];
+
+        PlayerButtonCommand lastOfKind = pairs[0].second;
+        for(size_t i = 1; i < pairs.size(); i++) {
+            auto& cmdPair = pairs[i];
+            PlayerButtonCommand cmd = cmdPair.second;
+
+            // same kind
+            if(cmd.m_button == lastOfKind.m_button && cmd.m_rightSide == lastOfKind.m_rightSide) {
+                // same holding state
+                if(cmd.m_holding == lastOfKind.m_holding) {
+                    // remove command
+                    size_t iter = 0;
+                    for(auto& _cmd : m_allFrames[cmdPair.first].m_commands) {
+                        if(_cmd.m_button == cmd.m_button
+                        && _cmd.m_holding == cmd.m_holding
+                        && _cmd.m_rightSide == cmd.m_rightSide
+                        ) {
+                            m_allFrames[cmdPair.first].m_commands.erase(m_allFrames[cmdPair.first].m_commands.begin() + iter);
+                            break;
+                        }
+                        iter++;
+                    }
+                }
+                else {
+                    lastOfKind = cmd;
+                }
+            }
+        }
+    }
+
+    GB_LOG("Macro::recordingFinished");
+}
+
 std::vector<unsigned char> convertFrame(const LevelFrame& frame) {
     /*
         FRAME FORMAT:
@@ -75,7 +128,8 @@ std::vector<unsigned char> convertFrame(const LevelFrame& frame) {
         addToByteVector(frameData, playerData.m_posX);
         addToByteVector(frameData, playerData.m_posY);
 
-        // ...
+        // velocity
+        addToByteVector(frameData, playerData.m_yVel);
     };
 
     addPlayerData(frame.m_player1);
@@ -104,6 +158,10 @@ PlayerData playerDataFromBytes(unsigned char* playerBytes, const size_t& size) {
     if(size >= 8) {
         data.m_posX = readValFromBytesRaw<float>(playerBytes, 0);
         data.m_posY = readValFromBytesRaw<float>(playerBytes, 4);
+    }
+    // velocity
+    if(size >= 16) {
+        data.m_yVel = readValFromBytesRaw<double>(playerBytes, 8);
     }
 
     return data;

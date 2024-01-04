@@ -8,6 +8,7 @@ enum BotStatus { Idle, Recording, Replaying, Rendering };
 struct PlayerData {
     float m_posX;
     float m_posY;
+    double m_yVel;
 };
 
 struct LevelFrame {
