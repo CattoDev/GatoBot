@@ -112,14 +112,14 @@ std::vector<unsigned char> convertFrame(const LevelFrame& frame) {
     /*
         FRAME FORMAT:
         - [1] {4 bytes} Frame index
-        - [2] {16} Delta time values
+        - [2] {16 bytes} Delta time values
             - {8 bytes} unk1 (double)
             - {4 bytes} unk2 (int)
             - {4 bytes} unk3 (float)
         - [3] {Player data size} Player 1 data
         - [4] {Player data size} Player 2 data
         - [5] {1 byte} Action count
-        - [6] {action size (3) * action count} Actions
+        - [6] {action size (3) * action count bytes} Actions
     */
     std::vector<unsigned char> frameData;
 

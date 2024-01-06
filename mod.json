@@ -4,5 +4,10 @@
 	"id": "cattodev.gatobot",
 	"name": "GatoBot",
 	"developer": "CattoDev",
-	"description": ""
+	"description": "",
+	"resources": {
+		"sprites": [
+			"resources/*.png"
+		]
+	}
 }
