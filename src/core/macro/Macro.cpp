@@ -55,6 +55,10 @@ float Macro::getDeltaTime() {
     return 1.f / static_cast<float>(m_fps);
 }
 
+int Macro::getFPS() {
+    return m_fps;
+}
+
 void Macro::recordingFinished() {
     // fix commands
     // <buttontype, <<frame, cmd>>>

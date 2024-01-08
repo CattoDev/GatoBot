@@ -51,11 +51,11 @@ void OverlayLayer::onRecord(CCObject*) {
 }
 
 void OverlayLayer::onReplay(CCObject*) {
-
-}
+    StatusSettingsPopup::create(BotStatus::Replaying)->show();
+}   
 
 void OverlayLayer::onRender(CCObject*) {
-
+    StatusSettingsPopup::create(BotStatus::Rendering)->show();
 }
 
 void OverlayLayer::onSave(CCObject*) {

@@ -18,6 +18,7 @@ public:
     Macro m_loadedMacro;
     int m_currentFrame = 0;
     float m_firstSPF;
+    float m_mainSpeed = 1.f;
 
 public:
     static GatoBot* get();
@@ -26,10 +27,14 @@ public:
     void changeStatus(BotStatus newStatus);
 
     int getGameFPS();
+    void setGameFPS(int fps);
+    void setMainSpeed(float speed);
+    float getMainSpeed();
     bool canPerform();
     bool isPlayback();
     void resetMacro();
     int getCurrentFrameNum();
+    Macro& getMacro();
 
     bool updatePlayLayer(float& dt);
     void updateCommon(float& dt);

@@ -93,6 +93,18 @@ int GatoBot::getGameFPS() {
     return static_cast<int>(std::round(1.f / interval));
 }
 
+void GatoBot::setGameFPS(int fps) {
+    CCDirector::sharedDirector()->setAnimationInterval(1.f / static_cast<float>(fps));
+}
+
+void GatoBot::setMainSpeed(float speed) {
+    m_mainSpeed = speed;
+}
+
+float GatoBot::getMainSpeed() {
+    return m_mainSpeed;
+}
+
 bool GatoBot::canPerform() {
     auto pLayer = this->getPlayLayer();
 
@@ -118,6 +130,10 @@ void GatoBot::resetMacro() {
 
 int GatoBot::getCurrentFrameNum() {
     return m_currentFrame;
+}
+
+Macro& GatoBot::getMacro() {
+    return m_loadedMacro;
 }
 
 bool GatoBot::updatePlayLayer(float& dt) {
@@ -163,15 +179,7 @@ void GatoBot::updateCommon(float& dt) {
     
     float newInterval = deltaTime / timeScale;
     dt = newInterval;
-    CCDirector::sharedDirector()->setAnimationInterval(newInterval);
-
-    // delta
-    /*if(this->isPlayback()) {
-        auto pLayer = this->getPlayLayer();
-        TEMP_MBO(double, pLayer, 0x2ac0) = 0;
-        TEMP_MBO(int, pLayer, 0x2afc) = 0;
-        TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
-    }*/
+    CCDirector::sharedDirector()->setAnimationInterval(newInterval / m_mainSpeed);
 }
 
 void GatoBot::onLevelReset() {

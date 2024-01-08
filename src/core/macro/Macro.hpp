@@ -15,6 +15,7 @@ public:
     void clearFramesFrom(int frame);
     int getFrameCount();
     float getDeltaTime();
+    int getFPS();
 
     void recordingFinished();
 
