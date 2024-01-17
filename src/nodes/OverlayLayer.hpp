@@ -14,4 +14,6 @@ public:
     void onRender(CCObject*);
     void onSave(CCObject*);
     void onLoad(CCObject*);
+
+    void onAlert(FLAlertLayer*, CCObject*);
 };

@@ -4,7 +4,7 @@ using namespace geode::prelude;
   
 void PopupTemplate::show() {
     // add to scene
-    CCDirector::sharedDirector()->getRunningScene()->addChild(this, 1000);
+    /*CCDirector::sharedDirector()->getRunningScene()->addChild(this, 1000);
 
     // animate
     auto action = CCEaseExponentialOut::create(
@@ -12,7 +12,8 @@ void PopupTemplate::show() {
     );
 
     m_mainLayer->setScale(0);
-    m_mainLayer->runAction(action);
+    m_mainLayer->runAction(action);*/
+    FLAlertLayer::show();
 }
 
 bool PopupTemplate::init() {

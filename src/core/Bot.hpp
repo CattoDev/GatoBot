@@ -31,6 +31,7 @@ public:
     void setMainSpeed(float speed);
     float getMainSpeed();
     bool canPerform();
+    BotStatus getStatus();
     bool isPlayback();
     void resetMacro();
     int getCurrentFrameNum();

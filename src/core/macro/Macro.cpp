@@ -59,6 +59,10 @@ int Macro::getFPS() {
     return m_fps;
 }
 
+bool Macro::isEmpty() {
+    return m_allFrames.size() == 0;
+}
+
 void Macro::recordingFinished() {
     // fix commands
     // <buttontype, <<frame, cmd>>>

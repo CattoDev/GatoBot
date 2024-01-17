@@ -117,6 +117,10 @@ bool GatoBot::canPerform() {
     ;
 }
 
+BotStatus GatoBot::getStatus() {
+    return m_status;
+}
+
 bool GatoBot::isPlayback() {
     return m_status == Replaying || m_status == Rendering;
 }

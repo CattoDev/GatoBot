@@ -1,6 +1,7 @@
 #include "OverlayLayer.hpp"
 
 #include "StatusSettingsPopup.hpp"
+#include "GBAlertLayer.hpp"
 #include <core/Bot.hpp>
 
 using namespace geode::prelude;
@@ -47,10 +48,46 @@ bool OverlayLayer::init() {
 }
 
 void OverlayLayer::onRecord(CCObject*) {
+    auto bot = GatoBot::get();
+
+    // finish recording
+    if(bot->getStatus() == BotStatus::Recording) {
+        bot->changeStatus(BotStatus::Idle);
+        
+        return;
+    }
+
+    // macro already loaded
+    if(!bot->getMacro().isEmpty()) {
+        GBAlertLayer::create("Warning", "<cy>Macro already loaded!</c>\nWould you like to overwrite it?", "Confirm", "Cancel", [](FLAlertLayer* alert, CCObject* pSender) {
+            if(as<CCMenuItemSpriteExtra*>(pSender)->getTag() == 1) {
+                StatusSettingsPopup::create(BotStatus::Recording)->show();
+            }
+        })->show();
+        
+        return;
+    }
+    
     StatusSettingsPopup::create(BotStatus::Recording)->show();
 }
 
 void OverlayLayer::onReplay(CCObject*) {
+    auto bot = GatoBot::get();
+
+    // finish replaying 
+    if(bot->getStatus() == BotStatus::Replaying) {
+        bot->changeStatus(BotStatus::Idle);
+        
+        return;
+    }
+
+    // no macro loaded 
+    if(GatoBot::get()->getMacro().isEmpty()) {
+        GBAlertLayer::create("Error", "No macro loaded to replay!", "OK")->show();
+        
+        return;
+    }
+
     StatusSettingsPopup::create(BotStatus::Replaying)->show();
 }   
 
@@ -64,4 +101,13 @@ void OverlayLayer::onSave(CCObject*) {
 
 void OverlayLayer::onLoad(CCObject*) {
 
+}
+
+void OverlayLayer::onAlert(FLAlertLayer* alert, CCObject* pSender) {
+    auto btn = as<CCMenuItemSpriteExtra*>(pSender);
+    const int choice = btn->getTag();
+
+    if(choice == 1) {
+        StatusSettingsPopup::create(BotStatus::Recording)->show();
+    }
 }

@@ -16,6 +16,7 @@ public:
     int getFrameCount();
     float getDeltaTime();
     int getFPS();
+    bool isEmpty();
 
     void recordingFinished();
 
