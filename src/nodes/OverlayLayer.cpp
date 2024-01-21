@@ -96,11 +96,40 @@ void OverlayLayer::onRender(CCObject*) {
 }
 
 void OverlayLayer::onSave(CCObject*) {
+    geode::utils::file::FilePickOptions options;
+    options.filters.push_back({ "GatoBot replay file", { "*.gbb" } });
 
+    auto filePath = geode::utils::file::pickFile(
+        geode::utils::file::PickMode::SaveFile,
+        options
+    );
+
+    if(filePath.isOk()) {
+        std::string filePathStr = filePath.value().string();
+        if(!filePath.value().has_extension()) {
+            filePathStr.append(".gbb");
+        }
+
+        GatoBot::get()->getMacro().saveFile(filePathStr);
+
+        GBAlertLayer::create("Success", fmt::format("Replay saved to:\n{}", filePathStr), "OK")->show();
+    }
 }
 
 void OverlayLayer::onLoad(CCObject*) {
+    geode::utils::file::FilePickOptions options;
+    options.filters.push_back({ "GatoBot replay file", { "*.gbb" } });
 
+    auto filePath = geode::utils::file::pickFile(
+        geode::utils::file::PickMode::OpenFile,
+        options
+    );
+
+    if(filePath.isOk()) {
+        GatoBot::get()->getMacro().loadFile(filePath.value().string());
+
+        GBAlertLayer::create("Success", fmt::format("Replay loaded:\n{}", filePath.value().string()), "OK")->show();
+    }
 }
 
 void OverlayLayer::onAlert(FLAlertLayer* alert, CCObject* pSender) {

@@ -14,12 +14,8 @@ struct PlayerData {
 struct LevelFrame {
     int m_frame;
 
-    double m_unk1;
-    int m_unk2;
-    float m_unk3;
-
     PlayerData m_player1;
     PlayerData m_player2;
 
-    std::vector<PlayerButtonCommand> m_commands;
+    gd::vector<PlayerButtonCommand> m_commands;
 };

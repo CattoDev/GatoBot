@@ -11,13 +11,14 @@ using namespace geode::prelude;
 class $modify(PlayLayer) {
     void resetLevel() {
         // fix button release on restart
-        auto buttons = TEMP_MBO(std::vector<PlayerButtonCommand>, this, 0x2B48);
+        //auto buttons = TEMP_MBO(std::vector<PlayerButtonCommand>, this, 0x2B48);
+        auto buttons = m_queuedButtons;
 
         PlayLayer::resetLevel();
 
         for(auto& cmd : buttons) {
-            if(!cmd.m_holding) {
-                this->queueButton(cmd.m_button, cmd.m_holding, cmd.m_rightSide);
+            if(!cmd.m_isPush) {
+                this->queueButton(static_cast<int>(cmd.m_button), cmd.m_isPush, cmd.m_isPlayer2);
             }
         }
 

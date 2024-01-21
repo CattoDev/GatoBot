@@ -38,7 +38,8 @@ GatoBot* GatoBot::get() {
 }
 
 PlayLayer* GatoBot::getPlayLayer() {
-    return TEMP_MBO(PlayLayer*, GameManager::sharedState(), 0x198);
+    //return TEMP_MBO(PlayLayer*, GameManager::sharedState(), 0x198);
+    return GameManager::sharedState()->getPlayLayer();
 }
 
 void GatoBot::changeStatus(BotStatus newStatus) {
@@ -113,7 +114,8 @@ bool GatoBot::canPerform() {
 
     return 
         !(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())   
-     && TEMP_MBO(bool, pLayer, 0x2ac8) // levelStarted (PlayLayer::startGame)
+     //&& TEMP_MBO(bool, pLayer, 0x2ac8) // levelStarted (PlayLayer::startGame)
+     && TEMP_MBO(bool, pLayer, 0x2ad0) // levelStarted (PlayLayer::startGame)
     ;
 }
 
@@ -144,8 +146,9 @@ bool GatoBot::updatePlayLayer(float& dt) {
     bool canAdvance = true;
 
     // game paused
-    // PlayLayer + 0x2ef7
-    bool gamePaused = this->getPlayLayer() != nullptr ? TEMP_MBO(bool, this->getPlayLayer(), 0x2ef7) : true;
+    // [PlayLayer + 0x2ef7] not anymore
+    // PlayLayer + 0x2f17
+    const bool gamePaused = this->getPlayLayer() != nullptr ? TEMP_MBO(bool, this->getPlayLayer(), 0x2f17) : true;
 
     if(m_status != BotStatus::Idle && !gamePaused) {
         this->updateCommon(dt);
@@ -212,12 +215,12 @@ void GatoBot::checkpointLoaded(int frame) {
     m_currentFrame = frame;
 
     // reset delta time values
-    auto pLayer = this->getPlayLayer();
+    /*auto pLayer = this->getPlayLayer();
     const auto lastFrame = m_loadedMacro.getFrame(frame - 1);
 
     TEMP_MBO(double, pLayer, 0x2ac0) = lastFrame.m_unk1;
     TEMP_MBO(int, pLayer, 0x2afc) = lastFrame.m_unk2;
-    TEMP_MBO(float, pLayer, 0x2d0) = lastFrame.m_unk3;
+    TEMP_MBO(float, pLayer, 0x2d0) = lastFrame.m_unk3;*/
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {
