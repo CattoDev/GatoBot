@@ -17,18 +17,25 @@ struct TPSLockData {
     float m_val3;
 };
 
-struct LevelFrame {
-    int m_frame;
-
-    PlayerData m_player1;
-    PlayerData m_player2;
-
-    gd::vector<PlayerButtonCommand> m_commands;
-};
-
 struct FrameState {
     int m_frame;
     
+    // shit that influences frame delta idk what to name these
+    double m_unk1;
+    int m_unk2;
+    float m_unk3;
+};
+
+struct LevelFrame {
+    int m_frame;
+
+    // PlayerData m_player1;
+    // PlayerData m_player2;
+
+    gd::vector<PlayerButtonCommand> m_commands;
+
+    // only used in recording
+    FrameState m_frameState;
 };
 
 struct RenderParams {

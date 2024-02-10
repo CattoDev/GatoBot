@@ -74,6 +74,7 @@ Encoder::Encoder(RenderParams params) {
 Encoder::~Encoder() {
     CC_SAFE_DELETE(m_codec);
     CC_SAFE_DELETE(m_codecContext);
+    CC_SAFE_DELETE(m_packet);
 }
 
 geode::Result<> Encoder::getLastResult() {

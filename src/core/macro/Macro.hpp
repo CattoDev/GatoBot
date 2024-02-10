@@ -15,6 +15,7 @@ public:
 
     void addFrame(LevelFrame& frame);
     LevelFrame& getFrame(int frame);
+    LevelFrame& getLastFrame();
     void clearFramesFrom(int frame);
     int getFrameCount();
     float getDeltaTime();

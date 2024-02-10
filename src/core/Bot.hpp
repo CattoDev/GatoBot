@@ -47,8 +47,9 @@ public:
     bool updateRendering(float& dt);
 
     void onLevelReset();
-    //void checkpointLoaded(int frame);
-    void loadFrameState(const FrameState& state);
+    FrameState createFrameState();
+    FrameState& getLastFrameState();
+    void loadFrameState(const FrameState& state, bool clearFrames = true);
     void botFinished(BotStatus oldStatus);
     void finishPlayback();
 };

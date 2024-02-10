@@ -81,6 +81,8 @@ void GatoBot::changeStatus(BotStatus newStatus) {
         }
     }
 
+    m_currentFrame = 0;
+
     GB_LOG("Changed status {} => {}", statToStr(m_status).c_str(), statToStr(newStatus).c_str());
 
     m_status = newStatus;
@@ -192,10 +194,12 @@ void GatoBot::updateCommon(float& dt) {
 void GatoBot::onLevelReset() {
     GB_LOG("onLevelReset");
 
+    if(m_status == BotStatus::Idle) return;
+
     // practice mode
     auto pLayer = this->getPlayLayer();
     //bool practiceMode = TEMP_MBO(bool, pLayer, 0x2a74);
-    auto checkpoints = TEMP_MBO(CCArray*, pLayer, 0x2df8);
+    auto checkpoints = TEMP_MBO(CCArray*, pLayer, 0x2e18);
 
     /*if(m_status == Recording) {
         if(!practiceMode || !checkpoints->count()) {
@@ -210,36 +214,72 @@ void GatoBot::onLevelReset() {
         m_currentFrame = 0;
     }*/
 
-    if(m_status == Recording) {
-        // load frame state
-        //if() {
-        //    GB_LOG("PRACTICE");
-        //}
+    /*if(m_status == Recording) {
+        // fix frames 
+        if(pLayer->m_isPracticeMode && checkpoints->count()) {
+            //this->loadFrameState(this->getLastFrameState());
+        }
+        else {
+            m_currentFrame = 0;
+        }
+
+        m_loadedMacro.clearFramesFrom(m_currentFrame);
     }
     else {
         m_currentFrame = 0;
     }
+
+    TEMP_MBO(double, pLayer, 0x2ac8) = 0;
+    TEMP_MBO(int, pLayer, 0x2b04) = 0;
+    TEMP_MBO(float, pLayer, 0x2d0) = 1.f;*/
+
+    if(!(pLayer->m_isPracticeMode && checkpoints->count())) {
+        m_currentFrame = 0;
+
+        if(m_status == Recording) {
+            m_loadedMacro.clearFramesFrom(m_currentFrame);
+        }
+
+        TEMP_MBO(double, pLayer, 0x2ac8) = 0;
+        TEMP_MBO(int, pLayer, 0x2b04) = 0;
+        TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
+    }
+    else {
+
+    }
 }
 
-/*void GatoBot::checkpointLoaded(int frame) {
-    GB_LOG("checkpointLoaded: {}", frame);
+FrameState GatoBot::createFrameState() {
+    FrameState state;
 
-    m_loadedMacro.clearFramesFrom(frame);
-    m_currentFrame = frame;
+    auto pLayer = this->getPlayLayer();
 
-    // reset delta time values
-    //auto pLayer = this->getPlayLayer();
-    //const auto lastFrame = m_loadedMacro.getFrame(frame - 1);
+    state.m_frame = m_currentFrame;
+    state.m_unk1 = TEMP_MBO(double, pLayer, 0x2ac8);
+    state.m_unk2 = TEMP_MBO(int, pLayer, 0x2b04);
+    state.m_unk3 = TEMP_MBO(float, pLayer, 0x2d0);
+    
+    return state;
+}
 
-    //TEMP_MBO(double, pLayer, 0x2ac0) = lastFrame.m_unk1;
-    //TEMP_MBO(int, pLayer, 0x2afc) = lastFrame.m_unk2;
-    //TEMP_MBO(float, pLayer, 0x2d0) = lastFrame.m_unk3;
-}*/
+FrameState& GatoBot::getLastFrameState() {
+    return m_loadedMacro.getLastFrame().m_frameState;
+}
 
-void GatoBot::loadFrameState(const FrameState& state) {
+void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
     GB_LOG("loadFrameState: {}", state.m_frame);
 
+    auto pLayer = this->getPlayLayer();
 
+    m_currentFrame = state.m_frame;
+    TEMP_MBO(double, pLayer, 0x2ac8) = state.m_unk1;
+    TEMP_MBO(int, pLayer, 0x2b04) = state.m_unk2;
+    TEMP_MBO(float, pLayer, 0x2d0) = state.m_unk3;
+
+    // clear frames after current framestate
+    if(clearFrames) {
+        m_loadedMacro.clearFramesFrom(m_currentFrame);
+    }
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {

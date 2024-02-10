@@ -40,6 +40,10 @@ LevelFrame& Macro::getFrame(int frame) {
     return m_allFrames[frame];
 }
 
+LevelFrame& Macro::getLastFrame() {
+    return m_allFrames.back();
+}
+
 void Macro::clearFramesFrom(int frame) {
     frame = std::min(frame, this->getFrameCount());
     m_allFrames.erase(m_allFrames.begin() + frame, m_allFrames.end());
@@ -150,69 +154,51 @@ void Macro::recordingFinished() {
     GB_LOG("Macro::recordingFinished");
 }
 
-std::vector<unsigned char> convertFrame(const LevelFrame& frame) {
-    /*
-        FRAME FORMAT:
-        - [1] {4 bytes} Frame index
-        - [2] {Player data size} Player 1 data
-        - [3] {Player data size} Player 2 data
-        - [4] {1 byte} Action count
-        - [5] {packed action size (1) * action count bytes} Actions
-    */
-    std::vector<unsigned char> frameData;
+// void Macro::saveFile(const std::string& filePath) {
+//     /*
+//         MACRO FORMAT:
+//         - [1] {4 bytes} Frame count
+//         - [2] {2 bytes} FPS count
+//         - [3] {?} Frame datas
+//     */
+//     std::vector<unsigned char> macroData;
 
-    // frame index
-    addToByteVector(frameData, frame.m_frame);
+//     // frame count (constantly 4 bytes)
+//     addToByteVector(macroData, this->getFrameCount());
 
-    // player datas
-    auto addPlayerData = [&frameData](const PlayerData& playerData) {
-        // position
-        addToByteVector(frameData, playerData.m_posX);
-        addToByteVector(frameData, playerData.m_posY);
+//     // FPS count
+//     addToByteVector(macroData, static_cast<unsigned short>(m_fps)); 
 
-        // velocity
-        addToByteVector(frameData, playerData.m_yVel);
-    };
+//     // write frames
+//     for(auto& frame : m_allFrames) {
+//         const auto frameBytes = convertFrame(frame);
 
-    addPlayerData(frame.m_player1);
-    addPlayerData(frame.m_player2);
+//         // copy frame data
+//         const size_t size = frameBytes.size();
+//         const int offset = macroData.size();
+//         macroData.resize(offset + size);
+//         memcpy(macroData.data() + offset, frameBytes.data(), size);
+//     }
 
-    // action count
-    const unsigned char actionCount = static_cast<unsigned char>(frame.m_commands.size());
-    addToByteVector(frameData, actionCount);
+//     // write to file
+//     std::ofstream file(filePath, std::ios::out | std::ios::binary);
 
-    // actions
-    if(actionCount > 0) {
-        for(auto& cmd : frame.m_commands) {
-            addToByteVector(frameData, Macro::packAction(cmd));
-        }
-    }
+//     file.write((char*)macroData.data(), macroData.size());
 
-    return frameData;
-}
-
-PlayerData playerDataFromBytes(unsigned char* playerBytes, const size_t& size) {
-    PlayerData data;
-
-    // position
-    if(size >= 8) {
-        data.m_posX = readValFromBytesRaw<float>(playerBytes, 0);
-        data.m_posY = readValFromBytesRaw<float>(playerBytes, 4);
-    }
-    // velocity
-    if(size >= 16) {
-        data.m_yVel = readValFromBytesRaw<double>(playerBytes, 8);
-    }
-
-    return data;
-}
+//     file.close();
+// }
 
 void Macro::saveFile(const std::string& filePath) {
     /*
         MACRO FORMAT:
         - [1] {4 bytes} Frame count
-        - [2] {2 bytes} FPS count
-        - [3] {?} Frame datas
+        - [2] {4 bytes} FPS count
+        - [3] {?} Clicks
+
+        CLICK FORMAT:
+        - [1] {4 bytes} Frame
+        - [2] {1 byte} Click count
+        - [3] {1 byte * Click count} Click data(s)
     */
     std::vector<unsigned char> macroData;
 
@@ -220,17 +206,23 @@ void Macro::saveFile(const std::string& filePath) {
     addToByteVector(macroData, this->getFrameCount());
 
     // FPS count
-    addToByteVector(macroData, static_cast<unsigned short>(m_fps)); 
+    addToByteVector(macroData, m_fps);
 
-    // write frames
+    // process frames to clicks
     for(auto& frame : m_allFrames) {
-        const auto frameBytes = convertFrame(frame);
+        if(frame.m_commands.empty()) continue;
 
-        // copy frame data
-        const size_t size = frameBytes.size();
-        const int offset = macroData.size();
-        macroData.resize(offset + size);
-        memcpy(macroData.data() + offset, frameBytes.data(), size);
+        // frame
+        addToByteVector(macroData, frame.m_frame);
+
+        // click count
+        addToByteVector(macroData, static_cast<unsigned char>(frame.m_commands.size()));
+
+        // clicks
+        for(auto& cmd : frame.m_commands) {
+            // pack into 1 byte
+            addToByteVector(macroData, this->packAction(cmd));
+        }
     }
 
     // write to file
@@ -257,42 +249,89 @@ void Macro::loadFile(const std::string& filePath) {
     const int frameCount = readValFromBytesRaw<int>(ptr, 0);
 
     // FPS count
-    m_fps = readValFromBytesRaw<unsigned short>(ptr, 4);
+    m_fps = readValFromBytesRaw<int>(ptr, 4);
 
-    // player data size
-    const unsigned char playerDataSize = 16;
+    // allocate frames
+    m_allFrames.resize(frameCount);
 
-    // process frames
-    size_t currentFrameOffset = 6;
-    for(size_t currentFrame = 0; currentFrame < frameCount; currentFrame++) {
-        // frame index
-        const int frame = readValFromBytesRaw<int>(ptr, currentFrameOffset);
-        currentFrameOffset += 0x4;
+    for(size_t i = 0; i < frameCount; i++) {
+        m_allFrames[i].m_frame = i;
+    }
 
-        // player 1 data
-        const auto player1 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
-        currentFrameOffset += playerDataSize;
+    // process clicks
+    for(size_t i = 8; i < macroData.size();) {
+        // frame
+        const int frame = readValFromBytesRaw<int>(ptr, i);
+        i += 4;
 
-        // player 2 data
-        const auto player2 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
-        currentFrameOffset += playerDataSize;
+        const unsigned char clickCount = readValFromBytesRaw<unsigned char>(ptr, i);
+        i += 1;
 
-        // get action count
-        const unsigned char actionCount = readValFromBytesRaw<unsigned char>(ptr, currentFrameOffset);
-        currentFrameOffset += 0x1;
+        for(size_t c = 0; c < clickCount; c++) {
+            const auto action = readValFromBytesRaw<PackedAction>(ptr, i + c);
+            i += 1;
 
-        // get actions
-        std::vector<PlayerButtonCommand> actions;
-        if(actionCount > 0) {
-            for(size_t i = 0; i < actionCount; i++) {
-                actions.push_back(Macro::unpackAction(readValFromBytesRaw<Macro::PackedAction>(ptr, currentFrameOffset)));
+            auto cmd = this->unpackAction(action);
 
-                currentFrameOffset++;
-            }
+            m_allFrames[frame].m_commands.push_back(cmd);
         }
-
-        m_allFrames.push_back({ frame, player1, player2, std::move(actions) });
     }
 
     GB_LOG("Macro: loaded {} frames", m_allFrames.size());
 }
+
+// void Macro::loadFile(const std::string& filePath) {
+//     // TEMP: clear before loading
+//     this->clearFramesFrom(0);
+
+//     // read file
+//     std::ifstream file(filePath, std::ios::in | std::ios::binary);
+
+//     std::vector<unsigned char> macroData(std::istreambuf_iterator<char>(file), {});
+//     file.close();
+
+//     auto ptr = macroData.data();
+
+//     // frame count (first 4 bytes)
+//     const int frameCount = readValFromBytesRaw<int>(ptr, 0);
+
+//     // FPS count
+//     m_fps = readValFromBytesRaw<unsigned short>(ptr, 4);
+
+//     // player data size
+//     const unsigned char playerDataSize = 16;
+
+//     // process frames
+//     size_t currentFrameOffset = 6;
+//     for(size_t currentFrame = 0; currentFrame < frameCount; currentFrame++) {
+//         // frame index
+//         const int frame = readValFromBytesRaw<int>(ptr, currentFrameOffset);
+//         currentFrameOffset += 0x4;
+
+//         // player 1 data
+//         const auto player1 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
+//         currentFrameOffset += playerDataSize;
+
+//         // player 2 data
+//         const auto player2 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
+//         currentFrameOffset += playerDataSize;
+
+//         // get action count
+//         const unsigned char actionCount = readValFromBytesRaw<unsigned char>(ptr, currentFrameOffset);
+//         currentFrameOffset += 0x1;
+
+//         // get actions
+//         std::vector<PlayerButtonCommand> actions;
+//         if(actionCount > 0) {
+//             for(size_t i = 0; i < actionCount; i++) {
+//                 actions.push_back(Macro::unpackAction(readValFromBytesRaw<Macro::PackedAction>(ptr, currentFrameOffset)));
+
+//                 currentFrameOffset++;
+//             }
+//         }
+
+//         m_allFrames.push_back({ frame, player1, player2, std::move(actions) });
+//     }
+
+//     GB_LOG("Macro: loaded {} frames", m_allFrames.size());
+// }

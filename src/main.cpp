@@ -45,7 +45,8 @@ class $modify(CCKeyboardDispatcher) {
 				int factor = key + 1 - KEY_One;
 
 				const float timeScale = 1.f / static_cast<float>(factor);
-				CCScheduler::get()->setTimeScale(timeScale);
+				//CCScheduler::get()->setTimeScale(timeScale);
+				GatoBot::get()->setMainSpeed(timeScale);
 
 				GB_LOG("Changed speed to {}", timeScale);
 			}

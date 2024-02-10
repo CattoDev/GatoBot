@@ -6,13 +6,13 @@
 using namespace geode::prelude;
 
 class $modify(GBCheckpoint, CheckpointObject) {
-    int frame;
+    FrameState frameState;
 
     static CheckpointObject* create() {
         auto checkpoint = as<GBCheckpoint*>(CheckpointObject::create());
-        checkpoint->m_fields->frame = GatoBot::get()->getCurrentFrameNum();
+        checkpoint->m_fields->frameState = GatoBot::get()->createFrameState();
 
-        GB_LOG("CheckpointObject::create frame {}", checkpoint->m_fields->frame);
+        GB_LOG("CheckpointObject::create frame {}", checkpoint->m_fields->frameState.m_frame);
 
         return checkpoint;
     }

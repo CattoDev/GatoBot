@@ -17,9 +17,7 @@ void GatoBot::setupRenderer() {
 
     if(m_encoder->getLastResult().isErr()) {
         geode::log::error("{}", m_encoder->getLastResult().unwrapErr());
-
-        CC_SAFE_DELETE(m_encoder);
-
-        return;
     }
+
+    CC_SAFE_DELETE(m_encoder);
 }

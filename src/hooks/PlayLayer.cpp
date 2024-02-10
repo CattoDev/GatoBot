@@ -10,8 +10,9 @@ using namespace geode::prelude;
 
 class $modify(PlayLayer) {
     void resetLevel() {
+        auto bot = GatoBot::get();
+
         // fix button release on restart
-        //auto buttons = TEMP_MBO(std::vector<PlayerButtonCommand>, this, 0x2B48);
         auto buttons = m_queuedButtons;
 
         PlayLayer::resetLevel();
@@ -22,10 +23,10 @@ class $modify(PlayLayer) {
             }
         }
 
-        GatoBot::get()->onLevelReset();
+        bot->onLevelReset();
     }
 
-    /*void loadFromCheckpoint(CheckpointObject* obj) {
+    void loadFromCheckpoint(CheckpointObject* obj) {
         PlayLayer::loadFromCheckpoint(obj);
 
         if(!obj) {
@@ -35,8 +36,18 @@ class $modify(PlayLayer) {
 
         auto checkpoint = as<GBCheckpoint*>(obj);
         
-        if(checkpoint->m_fields->frame) {
-            GatoBot::get()->checkpointLoaded(checkpoint->m_fields->frame);
+        if(checkpoint->m_fields->frameState.m_frame) {
+            GatoBot::get()->loadFrameState(checkpoint->m_fields->frameState);
         }
-    }*/
+    }
+
+    void resume() {
+        auto bot = GatoBot::get();
+
+        auto state = bot->createFrameState();
+
+        PlayLayer::resume();
+
+        bot->loadFrameState(state, false);
+    }
 };
