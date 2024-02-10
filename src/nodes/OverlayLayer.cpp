@@ -92,7 +92,9 @@ void OverlayLayer::onReplay(CCObject*) {
 }   
 
 void OverlayLayer::onRender(CCObject*) {
-    StatusSettingsPopup::create(BotStatus::Rendering)->show();
+    //StatusSettingsPopup::create(BotStatus::Rendering)->show();
+
+    GatoBot::get()->setupRenderer();
 }
 
 void OverlayLayer::onSave(CCObject*) {

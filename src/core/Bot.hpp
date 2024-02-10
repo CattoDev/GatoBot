@@ -3,6 +3,7 @@
 #include "Types.hpp"
 #include "../Debug.hpp"
 #include "macro/Macro.hpp"
+#include "renderer/Encoder.hpp"
 
 #include <vector>
 
@@ -19,6 +20,7 @@ public:
     int m_currentFrame = 0;
     float m_firstSPF;
     float m_mainSpeed = 1.f;
+    Encoder* m_encoder;
 
 public:
     static GatoBot* get();
@@ -36,6 +38,7 @@ public:
     void resetMacro();
     int getCurrentFrameNum();
     Macro& getMacro();
+    void setupRenderer();
 
     bool updatePlayLayer(float& dt);
     void updateCommon(float& dt);
@@ -44,7 +47,8 @@ public:
     bool updateRendering(float& dt);
 
     void onLevelReset();
-    void checkpointLoaded(int frame);
+    //void checkpointLoaded(int frame);
+    void loadFrameState(const FrameState& state);
     void botFinished(BotStatus oldStatus);
     void finishPlayback();
 };

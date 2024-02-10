@@ -1,7 +1,9 @@
 {
-	"geode": "2.0.0",
+	"geode": "2.0.0-beta.15",
 	"version": "v1.4.0-alpha.1",
-	"gd": "2.204",
+	"gd": {
+		"win": "2.204"
+	},
 	"id": "cattodev.gatobot",
 	"name": "GatoBot",
 	"developer": "CattoDev",
@@ -9,6 +11,9 @@
 	"resources": {
 		"sprites": [
 			"resources/*.png"
+		],
+		"files": [
+			"resources/ffmpeg/*.dll"
 		]
 	}
 }

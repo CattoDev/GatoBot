@@ -25,7 +25,7 @@ class $modify(PlayLayer) {
         GatoBot::get()->onLevelReset();
     }
 
-    void loadFromCheckpoint(CheckpointObject* obj) {
+    /*void loadFromCheckpoint(CheckpointObject* obj) {
         PlayLayer::loadFromCheckpoint(obj);
 
         if(!obj) {
@@ -38,5 +38,5 @@ class $modify(PlayLayer) {
         if(checkpoint->m_fields->frame) {
             GatoBot::get()->checkpointLoaded(checkpoint->m_fields->frame);
         }
-    }
+    }*/
 };
