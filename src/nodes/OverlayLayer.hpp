@@ -4,8 +4,11 @@
 
 class OverlayLayer : public PopupTemplate {
 public:
-    static OverlayLayer* create();
+    static OverlayLayer* get();
+    static void display();
+    static void close();
     void show() override;
+    void keyBackClicked() override;
 
     bool init();
 

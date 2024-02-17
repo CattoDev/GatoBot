@@ -40,11 +40,11 @@ public:
     Macro& getMacro();
     void setupRenderer();
 
-    bool updatePlayLayer(float& dt);
+    void updatePlayLayer(float& dt);
     void updateCommon(float& dt);
     void updateRecording();
     void updateReplaying();
-    bool updateRendering(float& dt);
+    void updateRendering();
 
     void onLevelReset();
     FrameState createFrameState();

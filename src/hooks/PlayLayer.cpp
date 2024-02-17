@@ -42,6 +42,7 @@ class $modify(PlayLayer) {
     }
 
     void resume() {
+        // fix frame delta inaccuracy
         auto bot = GatoBot::get();
 
         auto state = bot->createFrameState();

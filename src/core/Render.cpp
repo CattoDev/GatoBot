@@ -10,7 +10,7 @@ void GatoBot::setupRenderer() {
         "C:/Programming/gdmods/GatoBot/build/sex.mp4",
         1600,
         900,
-        225
+        60
     };
 
     m_encoder = new Encoder(params);
@@ -19,5 +19,19 @@ void GatoBot::setupRenderer() {
         geode::log::error("{}", m_encoder->getLastResult().unwrapErr());
     }
 
-    CC_SAFE_DELETE(m_encoder);
+    //CC_SAFE_DELETE(m_encoder);
+}
+
+void GatoBot::updateRendering() {
+    // update replay
+    this->updateReplaying();
+
+    // capture frame
+    m_encoder->captureCurrentFrame();
+
+    // check for errors
+    if(m_encoder->getLastResult().isErr()) {
+        log::error("Rendering error: {}", m_encoder->getLastResult().unwrapErr());
+        this->changeStatus(BotStatus::Idle);
+    }
 }

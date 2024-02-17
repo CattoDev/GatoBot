@@ -1,7 +1,6 @@
 #include "Macro.hpp"
 
 #include "Debug.hpp"
-//#include <Geode/../../src/platform/windows/nfdwin.hpp>
 #include <fstream>
 
 // for conversions
@@ -154,40 +153,6 @@ void Macro::recordingFinished() {
     GB_LOG("Macro::recordingFinished");
 }
 
-// void Macro::saveFile(const std::string& filePath) {
-//     /*
-//         MACRO FORMAT:
-//         - [1] {4 bytes} Frame count
-//         - [2] {2 bytes} FPS count
-//         - [3] {?} Frame datas
-//     */
-//     std::vector<unsigned char> macroData;
-
-//     // frame count (constantly 4 bytes)
-//     addToByteVector(macroData, this->getFrameCount());
-
-//     // FPS count
-//     addToByteVector(macroData, static_cast<unsigned short>(m_fps)); 
-
-//     // write frames
-//     for(auto& frame : m_allFrames) {
-//         const auto frameBytes = convertFrame(frame);
-
-//         // copy frame data
-//         const size_t size = frameBytes.size();
-//         const int offset = macroData.size();
-//         macroData.resize(offset + size);
-//         memcpy(macroData.data() + offset, frameBytes.data(), size);
-//     }
-
-//     // write to file
-//     std::ofstream file(filePath, std::ios::out | std::ios::binary);
-
-//     file.write((char*)macroData.data(), macroData.size());
-
-//     file.close();
-// }
-
 void Macro::saveFile(const std::string& filePath) {
     /*
         MACRO FORMAT:
@@ -279,59 +244,3 @@ void Macro::loadFile(const std::string& filePath) {
 
     GB_LOG("Macro: loaded {} frames", m_allFrames.size());
 }
-
-// void Macro::loadFile(const std::string& filePath) {
-//     // TEMP: clear before loading
-//     this->clearFramesFrom(0);
-
-//     // read file
-//     std::ifstream file(filePath, std::ios::in | std::ios::binary);
-
-//     std::vector<unsigned char> macroData(std::istreambuf_iterator<char>(file), {});
-//     file.close();
-
-//     auto ptr = macroData.data();
-
-//     // frame count (first 4 bytes)
-//     const int frameCount = readValFromBytesRaw<int>(ptr, 0);
-
-//     // FPS count
-//     m_fps = readValFromBytesRaw<unsigned short>(ptr, 4);
-
-//     // player data size
-//     const unsigned char playerDataSize = 16;
-
-//     // process frames
-//     size_t currentFrameOffset = 6;
-//     for(size_t currentFrame = 0; currentFrame < frameCount; currentFrame++) {
-//         // frame index
-//         const int frame = readValFromBytesRaw<int>(ptr, currentFrameOffset);
-//         currentFrameOffset += 0x4;
-
-//         // player 1 data
-//         const auto player1 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
-//         currentFrameOffset += playerDataSize;
-
-//         // player 2 data
-//         const auto player2 = playerDataFromBytes(ptr + currentFrameOffset, playerDataSize);
-//         currentFrameOffset += playerDataSize;
-
-//         // get action count
-//         const unsigned char actionCount = readValFromBytesRaw<unsigned char>(ptr, currentFrameOffset);
-//         currentFrameOffset += 0x1;
-
-//         // get actions
-//         std::vector<PlayerButtonCommand> actions;
-//         if(actionCount > 0) {
-//             for(size_t i = 0; i < actionCount; i++) {
-//                 actions.push_back(Macro::unpackAction(readValFromBytesRaw<Macro::PackedAction>(ptr, currentFrameOffset)));
-
-//                 currentFrameOffset++;
-//             }
-//         }
-
-//         m_allFrames.push_back({ frame, player1, player2, std::move(actions) });
-//     }
-
-//     GB_LOG("Macro: loaded {} frames", m_allFrames.size());
-// }

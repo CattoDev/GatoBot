@@ -9,8 +9,7 @@ class $modify(CCScheduler) {
     void update(float dt) {
         auto bot = GatoBot::get();
 
-        if(bot->updatePlayLayer(dt)) {
-            CCScheduler::update(dt);
-        }
+        bot->updatePlayLayer(dt);
+        CCScheduler::update(dt);
     }
 };

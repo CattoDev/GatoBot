@@ -34,6 +34,8 @@ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
 file(GLOB FFMPEG_LIBS
   external/ffmpeg/bin/win32/avcodec.lib
   external/ffmpeg/bin/win32/avutil.lib
+  external/ffmpeg/bin/win32/avformat.lib
+  external/ffmpeg/bin/win32/swscale.lib
 )
 
 

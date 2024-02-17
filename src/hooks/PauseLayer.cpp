@@ -7,7 +7,7 @@ using namespace geode::prelude;
 
 class $modify(GBPauseLayer, PauseLayer) {
     void onBotMenu(CCObject*) {
-        OverlayLayer::create()->show();
+        OverlayLayer::display();
     }
 
     void customSetup() {

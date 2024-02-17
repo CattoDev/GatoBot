@@ -52,6 +52,7 @@ void PopupTemplate::setBackground(CCSize const& size) {
     // border
     if(!m_bgBorder) {
         m_bgBorder = extension::CCScale9Sprite::create("GJ_square07.png", { 0.f, 0.f, 80.f, 80.f });
+        //m_bgBorder = extension::CCScale9Sprite::create("GB_blankBtn_001.png"_spr, { 0.f, 0.f, 40.f, 40.f });
         m_bgBorder->setPosition(winSize / 2);
 
         m_mainLayer->addChild(m_bgBorder);
@@ -60,7 +61,7 @@ void PopupTemplate::setBackground(CCSize const& size) {
 
     // background
     if(!m_bgGradient) {
-        m_bgGradient = CCLayerGradient::create({ 125, 0, 0, 255 }, { 175, 175, 0, 255 });
+        m_bgGradient = CCLayerGradient::create({ 175, 0, 0, 255 }, { 175, 175, 0, 255 });
         m_bgGradient->setPosition(winSize / 2 - size / 2); // CCLayerGradient anchor point is goofy
     }
     m_bgGradient->setContentSize(size);

@@ -6,20 +6,43 @@
 
 using namespace geode::prelude;
 
-OverlayLayer* OverlayLayer::create() {
-    auto pRet = new OverlayLayer();
+OverlayLayer* g_instance = nullptr;
 
-    if(pRet && pRet->init()) {
-        pRet->autorelease();
-        return pRet;
+OverlayLayer* OverlayLayer::get() {
+    if(!g_instance) {
+        g_instance = new OverlayLayer();
+
+        if(g_instance && g_instance->init()) {
+            g_instance->autorelease();
+        }
+        else {
+            CC_SAFE_DELETE(g_instance);
+        }
     }
-    CC_SAFE_DELETE(pRet);
-    return nullptr;
+
+    return g_instance;
+}
+
+void OverlayLayer::display() {
+    OverlayLayer::get()->show();
+}
+
+void OverlayLayer::close() {
+    if(g_instance) { 
+        g_instance->keyBackClicked();
+        g_instance = nullptr;
+    }
 }
 
 void OverlayLayer::show() {
     // just add to scene
     CCDirector::sharedDirector()->getRunningScene()->addChild(this, 1000);
+}
+
+void OverlayLayer::keyBackClicked() {
+    PopupTemplate::keyBackClicked();
+
+    g_instance = nullptr;
 }
 
 bool OverlayLayer::init() {
@@ -94,7 +117,14 @@ void OverlayLayer::onReplay(CCObject*) {
 void OverlayLayer::onRender(CCObject*) {
     //StatusSettingsPopup::create(BotStatus::Rendering)->show();
 
-    GatoBot::get()->setupRenderer();
+    auto bot = GatoBot::get();
+
+    if(bot->getStatus() == BotStatus::Rendering) {
+        bot->changeStatus(BotStatus::Idle);
+        return;
+    }
+
+    GatoBot::get()->changeStatus(BotStatus::Rendering);
 }
 
 void OverlayLayer::onSave(CCObject*) {

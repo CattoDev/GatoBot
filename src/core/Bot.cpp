@@ -63,7 +63,7 @@ void GatoBot::changeStatus(BotStatus newStatus) {
         } break;
 
         case Rendering: {
-            
+            this->setupRenderer();
         } break;
         
         default: { // Idle
@@ -144,9 +144,7 @@ Macro& GatoBot::getMacro() {
     return m_loadedMacro;
 }
 
-bool GatoBot::updatePlayLayer(float& dt) {
-    bool canAdvance = true;
-
+void GatoBot::updatePlayLayer(float& dt) {
     // game paused
     // [PlayLayer + 0x2ef7] not anymore
     // PlayLayer + 0x2f17
@@ -165,12 +163,10 @@ bool GatoBot::updatePlayLayer(float& dt) {
             } break;
 
             case Rendering: {
-                //canAdvance = this->updateRendering(dt);
+                this->updateRendering();
             } break;
         }
     }
-
-    return canAdvance;
 }
 
 void GatoBot::updateCommon(float& dt) {
@@ -290,6 +286,11 @@ void GatoBot::botFinished(BotStatus oldStatus) {
 
     if(oldStatus == Recording) {
         m_loadedMacro.recordingFinished();
+    }
+
+    if(oldStatus == Rendering) {
+        m_encoder->encodingFinished();
+        CC_SAFE_DELETE(m_encoder);
     }
 }
 

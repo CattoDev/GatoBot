@@ -1,4 +1,5 @@
 #include "StatusSettingsPopup.hpp"
+#include "OverlayLayer.hpp"
 
 #include <core/Bot.hpp>
 
@@ -168,6 +169,14 @@ void StatusSettingsPopup::onStart(CCObject*) {
 
     // close layer
     this->onClose(nullptr);
+
+    // close gatobot menu
+    OverlayLayer::close();
+
+    // close pauselayer
+    if(auto pause = typeinfo_cast<PauseLayer*>(CCDirector::sharedDirector()->getRunningScene()->getChildByID("PauseLayer"))) {
+        pause->onRestart(nullptr);
+    }
 }
 
 void StatusSettingsPopup::onClose(CCObject*) {
