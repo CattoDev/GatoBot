@@ -11,5 +11,7 @@ class $modify(CCScheduler) {
 
         bot->updatePlayLayer(dt);
         CCScheduler::update(dt);
+
+        //log::debug("delta time {} [{} FPS]", dt, 1.f / dt);
     }
 };

@@ -9,6 +9,11 @@
 	"developer": "CattoDev",
 	"description": "",
 	"resources": {
+		"spritesheets": {
+			"BotSheet": [ 
+				"resources/BotSheet/*.png"
+			]
+		},
 		"sprites": [
 			"resources/*.png"
 		],

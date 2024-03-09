@@ -8,9 +8,10 @@ void GatoBot::setupRenderer() {
     RenderParams params {
         "libx264",
         "C:/Programming/gdmods/GatoBot/build/sex.mp4",
+        "C:/Games/Geometry Dash GEODE/Resources/Dash.mp3",
         1600,
         900,
-        60
+        75
     };
 
     m_encoder = new Encoder(params);

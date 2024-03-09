@@ -180,11 +180,9 @@ void GatoBot::updateCommon(float& dt) {
 
     // lock delta
     float deltaTime = m_loadedMacro.getDeltaTime();
-    const float timeScale = CCScheduler::get()->getTimeScale();
     
-    float newInterval = deltaTime / timeScale;
-    dt = newInterval;
-    CCDirector::sharedDirector()->setAnimationInterval(newInterval / m_mainSpeed);
+    dt = deltaTime;
+    CCDirector::sharedDirector()->setAnimationInterval((double)deltaTime / (double)this->getMainSpeed());
 }
 
 void GatoBot::onLevelReset() {

@@ -41,6 +41,7 @@ struct LevelFrame {
 struct RenderParams {
     const char* m_codec;
     std::string m_outputPath;
+    std::string m_songPath;
 
     int m_width;
     int m_height;
