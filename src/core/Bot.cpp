@@ -32,6 +32,7 @@ std::string statToStr(BotStatus stat) {
 GatoBot* GatoBot::get() {
     if(!g_botInstance) {
         g_botInstance = new GatoBot();
+        g_botInstance->updateHooks();
     }
 
     return g_botInstance;
@@ -89,11 +90,17 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
 
     m_currentFrame = 0;
 
+    m_status = newStatus;
+    this->updateHooks();
+
     GB_LOG("Changed status {} => {}", statToStr(m_status).c_str(), statToStr(newStatus).c_str());
 
-    m_status = newStatus;
-
     return result;
+}
+
+void GatoBot::updateHooks() {
+    this->toggleHook("CCScheduler::update", m_status != BotStatus::Idle);
+    this->toggleHook("glViewport", m_status == BotStatus::Rendering);
 }
 
 int GatoBot::getGameFPS() {
@@ -108,8 +115,6 @@ void GatoBot::setGameSPF(double spf) {
     CCDirector::sharedDirector()->setAnimationInterval(spf);
 
     CCApplication::sharedApplication()->setAnimationInterval(spf);
-
-    GB_LOG("setGameSPF: {}", spf);
 }
 
 void GatoBot::setGameFPS(int fps) {
@@ -171,6 +176,18 @@ RenderParams* GatoBot::getRenderParams() {
 
 void GatoBot::applyRenderParams(const RenderParams& params) {
     m_renderParams = params;
+}
+
+void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
+    for(auto& h : Mod::get()->getHooks()) {
+        if(h->getDisplayName() == hookName) {
+            if(toggle) (void)h->enable();
+            else (void)h->disable();
+            break;
+        }
+    }
+
+    log::debug("Hook {}: {}", hookName, toggle);
 }
 
 void GatoBot::updatePlayLayer(float& dt) {

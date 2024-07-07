@@ -14,7 +14,6 @@
 
 class GatoBot {
 private:
-//public:
     BotStatus m_status = BotStatus::Idle;
     Macro m_loadedMacro;
     RenderParams m_renderParams;
@@ -43,6 +42,8 @@ public:
     RenderParams* getRenderParams();
     void applyRenderParams(const RenderParams& params);
     geode::Result<> setupRenderer();
+    void toggleHook(const std::string& hookName, bool toggle);
+    void updateHooks();
 
     void updatePlayLayer(float& dt);
     void updateCommon(float& dt);

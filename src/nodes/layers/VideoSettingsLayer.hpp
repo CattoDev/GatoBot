@@ -25,5 +25,8 @@ private:
     void onPickFile(CCObject*);
 
 public:
+    std::vector<RenderSettingsPreset>& getPresets();
+    void applyRenderParams();
+
     static VideoSettingsLayer* create(RenderParams* renderParams, const cocos2d::CCSize& size);
 };

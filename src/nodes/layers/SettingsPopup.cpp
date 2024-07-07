@@ -127,8 +127,8 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
             videoSettings->setTag(SettingsMenuType::Video);
             m_settingsSections.push_back(videoSettings);
             {
-                // scroll layer (don't need for now actually lol)
-                /*CCSize scrollSize { settingsSectionSize.width - 15.f, settingsSectionSize.height - .5f }; 
+                // scroll layer
+                CCSize scrollSize { settingsSectionSize.width, settingsSectionSize.height - .5f }; 
                 CCRect scrollRect {
                     -scrollSize.width / 2,
                     -scrollSize.height / 2,
@@ -136,14 +136,17 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
                     scrollSize.height
                 };
                 auto scroll = ScrollLayer::create(scrollRect, true, true);
-                scroll->m_contentLayer->addChild(CCSprite::create("square01_001.png"));
 
-                videoSettings->addChild(scroll);*/
-
-                auto settings = VideoSettingsLayer::create(&m_renderParams, settingsSectionSize);
+                auto settingsLayerSize = settingsSectionSize + CCSize { 0.f, 30.f };
+                auto settings = VideoSettingsLayer::create(&m_renderParams, settingsLayerSize);
+                settings->setPosition(settingsLayerSize / 2);
                 m_settingsLayers.push_back(settings);
 
-                videoSettings->addChild(settings);
+                scroll->m_contentLayer->addChild(settings);
+                scroll->m_contentLayer->setContentSize(settings->getContentSize());
+                scroll->scrollToTop();
+
+                videoSettings->addChild(scroll);
             }
             m_buttonMenu->addChild(videoSettings);
 
@@ -161,6 +164,7 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
     }
 
     // finish
+    this->applyRenderSettings(&m_renderParams);
     this->createInputBackgrounds();
 
     return layerSize;
@@ -203,6 +207,25 @@ const char* SettingsPopup::statusToStr(BotStatus status) {
             return "Render";
         } break;
     };
+}
+
+void SettingsPopup::applyRenderSettings(RenderParams* params) {
+    if(m_status != Rendering) return;
+
+    auto videoSettings = typeinfo_cast<VideoSettingsLayer*>(m_settingsLayers.at(0));
+    auto preset = videoSettings->getPresets().at(2);
+
+    // default settings
+    if(params->m_width <= 0 || params->m_height <= 0 || params->m_fps <= 0) {
+        params->m_width = preset.m_width;
+        params->m_height = preset.m_height;
+        params->m_fps = preset.m_fps;
+        params->m_videoBitrate = preset.m_videoBitrate;
+        params->m_codec = "libx264";
+    }
+
+    // apply settings
+    videoSettings->applyRenderParams();
 }
 
 void SettingsPopup::createInputBackgrounds() {
@@ -278,6 +301,7 @@ void SettingsPopup::onStart(CCObject*) {
                 // failed to apply setting
                 if(result.isErr()) {
                     geode::log::error("{}", result.unwrapErr());
+                    GBAlertLayer::create("Error", fmt::format("<cr>{}</c>", result.unwrapErr()), "OK")->show();
 
                     settingsApplied = false;
                     break;
@@ -291,48 +315,6 @@ void SettingsPopup::onStart(CCObject*) {
     if(m_status == BotStatus::Rendering) {
         bot->applyRenderParams(m_renderParams);
     }
-
-    /*// verify input node data
-    #define VERIFY_NODE(verFunc, node) \
-        if(verFunc(node)) { this->invalidInput(); return; }
-
-    auto VERIFY_INT = [](CCTextInputNode* inputNode) {
-        char* endPtr = nullptr;
-        (void)strtol(inputNode->getString().c_str(), &endPtr, 10);
-
-        return *endPtr != '\0';
-    };
-    auto VERIFY_FLOAT = [](CCTextInputNode* inputNode) {
-        char* endPtr = nullptr;
-        (void)strtof(inputNode->getString().c_str(), &endPtr);
-
-        return *endPtr != '\0';
-    };
-
-    VERIFY_NODE(VERIFY_INT, m_inputNodes[0]);
-    VERIFY_NODE(VERIFY_FLOAT, m_inputNodes[1]);
-
-    // apply settings
-    auto bot = GatoBot::get();
-
-    auto FPS = std::stoi(m_inputNodes[0]->getString());
-    bot->getMacro().prepareMacro(FPS);
-    bot->setGameFPS(FPS);
-    bot->setMainSpeed(std::strtof(m_inputNodes[1]->getString().c_str(), nullptr));
-
-    // start
-    (void)bot->changeStatus(m_status);
-
-    // close layer
-    this->onClose(nullptr);
-
-    // close gatobot menu
-    OverlayLayer::close();
-
-    // close pauselayer
-    if(auto pause = typeinfo_cast<PauseLayer*>(CCDirector::sharedDirector()->getRunningScene()->getChildByID("PauseLayer"))) {
-        pause->onRestart(nullptr);
-    }*/
 
     // start
     auto result = bot->changeStatus(m_status);

@@ -27,7 +27,7 @@ bool GBAlertLayer::init(const char* title, std::string text, const char* btn1tex
 
     auto darkBG = extension::CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
     darkBG->setContentSize(layerSize - CCSize { 20.f, 80.f });
-    darkBG->setOpacity(100);
+    darkBG->setOpacity(90);
     darkBG->setPosition(winSize / 2 + CCPoint { 0.f, 5.f });
 
     m_mainLayer->addChild(darkBG);

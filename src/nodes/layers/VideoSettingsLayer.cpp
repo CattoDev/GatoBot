@@ -47,15 +47,15 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
 
         this->createLabel("X", inputsPosLeft + CCPoint { 27.5f, .5f }, 10.f, kCCTextAlignmentCenter);
         this->createLabel("@", inputsPosLeft + CCPoint { 82.5f, .5f }, 10.f, kCCTextAlignmentCenter);
-
-        //this->createDarkBG(CCSize { 150.f, 50.f }, CCPoint { left + 71.25f, top - 26.25f });
     }
 
     // codec options
     {
-        this->createLabel("Codec", CCPoint { left, top - 70.f }, 100.f);
+        auto labelPos = CCPoint { left, top - 60.f };
 
-        CCPoint inputsPosLeft = { left + 50.f, top - 95.f };
+        this->createLabel("Codec", labelPos, 100.f);
+
+        CCPoint inputsPosLeft = labelPos + CCPoint { 50.f, -25.f };
 
         // codec input
         this->createInput(geode::getCommonFilterAllowedChars(CommonFilter::Name), CCSize { 100.f, 30.f }, inputsPosLeft, [renderParams](std::string rawStr) { 
@@ -90,15 +90,32 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
         this->createPresetButton("8K", { 7680, 4320, 60, 100000, "libx265" });
     }
 
+    // video bitrate
+    {
+        CCPoint labelPos = { left, top - 115.f };
+
+        this->createLabel("Bitrate", labelPos, 100.f);
+
+        CCPoint inputsPosLeft = labelPos + CCPoint { 50.f, -25.f };
+
+        // codec input
+        this->createInput("0123456789", CCSize { 100.f, 30.f }, inputsPosLeft, [applyInt, renderParams](std::string rawStr) { 
+            return applyInt(rawStr.c_str(), &renderParams->m_videoBitrate);
+        })->m_inputNode->setMaxCharCount(10);
+    }
+
     // output video path
     {
-        CCPoint labelPos = { left, top - 130.f };
+        CCPoint labelPos = { left, top - 170.f };
 
         this->createLabel("Output path", labelPos, 100.f);
 
         // filepath input
-        auto pathInput = this->createInput(geode::getCommonFilterAllowedChars(CommonFilter::Any), CCSize { size.width - 50.f, 30.f }, CCPoint { -20.f, labelPos.y - 30.f }, [renderParams](std::string rawStr) {
+        auto pathInput = this->createInput(geode::getCommonFilterAllowedChars(CommonFilter::Any), CCSize { size.width - 50.f, 30.f }, CCPoint { -20.f, labelPos.y - 25.f }, [renderParams](std::string rawStr) {
             std::filesystem::path filePath = rawStr;
+            Result<> res = Ok();
+
+            if(filePath.empty()) res = Err("Output video file path is empty!");
 
             // verify extension
             if(!filePath.has_extension() || filePath.extension() != ".mp4") {
@@ -107,7 +124,7 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
             
             renderParams->m_outputPath = filePath.string();
             
-            return Ok();
+            return res;
         });
         pathInput->m_inputNode->setPlaceholder("output video path");
         
@@ -124,14 +141,9 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
         auto filePickBtnSpr = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
         auto filePickBtn = CCMenuItemSpriteExtra::create(filePickBtnSpr, this, menu_selector(VideoSettingsLayer::onPickFile));
 
-        filePickBtn->setPosition(CCPoint { size.width / 2 - 22.5f, labelPos.y - 30.f });
+        filePickBtn->setPosition(CCPoint { size.width / 2 - 22.5f, labelPos.y - 25.f });
 
         btnMenu->addChild(filePickBtn);
-    }
-
-    // apply default preset (720p)
-    if(m_renderParams->m_width <= 0 || m_renderParams->m_height <= 0 || m_renderParams->m_fps <= 0) {
-        this->applyPreset(m_presets.at(2));
     }
     
     return true;
@@ -157,6 +169,9 @@ void VideoSettingsLayer::applyPreset(const RenderSettingsPreset& presetData) {
 
     // codec
     m_inputNodes.at(3)->setString(presetData.m_codec);
+
+    // bitrate
+    m_inputNodes.at(4)->setString(std::to_string(presetData.m_videoBitrate));
 }
 
 void VideoSettingsLayer::onPreset(CCObject* sender) { 
@@ -188,9 +203,26 @@ void VideoSettingsLayer::onPickFile(CCObject*) {
             }
 
             // apply path
-            m_inputNodes.at(4)->setString(filePath.string());
+            m_inputNodes.at(5)->setString(filePath.string());
         }
     );
+}
+
+std::vector<RenderSettingsPreset>& VideoSettingsLayer::getPresets() {
+    return m_presets;
+}
+
+void VideoSettingsLayer::applyRenderParams() {
+    // resolution
+    m_inputNodes.at(0)->setString(std::to_string(m_renderParams->m_width));
+    m_inputNodes.at(1)->setString(std::to_string(m_renderParams->m_height));
+    m_inputNodes.at(2)->setString(std::to_string(m_renderParams->m_fps));
+
+    // codec
+    m_inputNodes.at(3)->setString(m_renderParams->m_codec);
+
+    // bitrate
+    m_inputNodes.at(4)->setString(std::to_string(m_renderParams->m_videoBitrate));
 }
 
 VideoSettingsLayer* VideoSettingsLayer::create(RenderParams* renderParams, const CCSize& size) {

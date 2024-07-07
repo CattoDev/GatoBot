@@ -16,7 +16,7 @@ class SwsContext;
 
 class Encoder {
 private:
-    RenderParams m_renderParams;
+    RenderParams* m_renderParams;
 
     const AVCodec* m_videoCodec;
     const AVCodec* m_audioCodec;
@@ -54,7 +54,7 @@ private:
     void sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video);
 
 public:
-    Encoder(RenderParams params);
+    Encoder(RenderParams* params);
     ~Encoder();
     
     geode::Result<> getLastResult();

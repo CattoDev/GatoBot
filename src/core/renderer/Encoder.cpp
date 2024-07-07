@@ -18,13 +18,13 @@ extern "C" {
     #include <libswscale/swscale.h>
 }
 
-Encoder::Encoder(RenderParams params) {
+Encoder::Encoder(RenderParams* params) {
     geode::log::debug("Encoder::Encoder()");
 
     m_renderParams = params;
 
     // setup encoder internals
-    this->setupEncoder(params);
+    this->setupEncoder(*params);
 
     // check for errors
     if(m_result.isErr()) {
@@ -35,16 +35,16 @@ Encoder::Encoder(RenderParams params) {
     // render at higher resolution
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
 
-    auto data = malloc(m_renderParams.m_width * m_renderParams.m_height * 3);
-    memset(data, 0, m_renderParams.m_width * m_renderParams.m_height * 3);
+    auto data = malloc(m_renderParams->m_width * m_renderParams->m_height * 3);
+    memset(data, 0, m_renderParams->m_width * m_renderParams->m_height * 3);
 
     m_renderTexture = new CCTexture2D();
-    m_renderTexture->initWithData(data, kCCTexture2DPixelFormat_RGB888, m_renderParams.m_width, m_renderParams.m_height, CCSize(static_cast<float>(m_renderParams.m_width), static_cast<float>(m_renderParams.m_height)));
+    m_renderTexture->initWithData(data, kCCTexture2DPixelFormat_RGB888, m_renderParams->m_width, m_renderParams->m_height, CCSize(static_cast<float>(m_renderParams->m_width), static_cast<float>(m_renderParams->m_height)));
 
     free(data);
 
     // allocate frame buffer
-    m_frameData.resize(m_renderParams.m_width * m_renderParams.m_height * 3);
+    m_frameData.resize(m_renderParams->m_width * m_renderParams->m_height * 3);
 
     glGetIntegerv(GL_RENDERBUFFER_BINDING, &m_oldRBO);
     glGenFramebuffers(1, &m_FBO);
@@ -138,10 +138,14 @@ void Encoder::setupEncoder(const RenderParams& params) {
     m_videoCodecContext->framerate = AVRational { params.m_fps, 1 };
 
     // set bitrate
-	m_videoCodecContext->bit_rate = 5 * 1024 * 1024;
+	/*m_videoCodecContext->bit_rate = 5 * 1024 * 1024;
 	m_videoCodecContext->rc_buffer_size = 4 * 1000 * 1000;
 	m_videoCodecContext->rc_max_rate = 5 * 1024 * 1024;
-	m_videoCodecContext->rc_min_rate = 5 * 1024 * 1024;
+	m_videoCodecContext->rc_min_rate = 5 * 1024 * 1024;*/
+    m_videoCodecContext->bit_rate = params.m_videoBitrate * 1000;
+	m_videoCodecContext->rc_buffer_size = params.m_videoBitrate * 1000;
+	m_videoCodecContext->rc_max_rate = params.m_videoBitrate * 1000;
+	m_videoCodecContext->rc_min_rate = params.m_videoBitrate * 1000;
 
     // needed for x264 to work
     m_videoCodecContext->me_range = 16;
@@ -457,7 +461,7 @@ void Encoder::processAudio() {
 void Encoder::captureFrame() {
     // (stolen from CCRenderTexture lmao)
     // set viewport of custom res
-    glViewport(0, 0, m_renderParams.m_width, m_renderParams.m_height);
+    glViewport(0, 0, m_renderParams->m_width, m_renderParams->m_height);
 
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
@@ -467,7 +471,7 @@ void Encoder::captureFrame() {
 
     // read pixels
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, m_renderParams.m_width, m_renderParams.m_height, GL_RGB, GL_UNSIGNED_BYTE, m_frameData.data());
+    glReadPixels(0, 0, m_renderParams->m_width, m_renderParams->m_height, GL_RGB, GL_UNSIGNED_BYTE, m_frameData.data());
 
     // reset settings
     glBindFramebuffer(GL_FRAMEBUFFER, m_oldFBO);
@@ -481,9 +485,20 @@ void Encoder::captureFrame() {
 }
 
 void Encoder::visit() {
+    // CCRenderTexture in ShaderLayer alters the viewport
+    // to the resolution set when the layer is created
+    // since we are using a custom viewport AFTER the
+    // layer is created, we have to block viewport changes
+    // from ShaderLayer
+    m_renderParams->m_updateViewport = false;
+
+    //log::debug("visit!!");
+
     PlayLayer::get()->visit(); // TEMP
 
     // TODO: rewrite PlayLayer::visit to allow text on top of a rendering scene
+
+    m_renderParams->m_updateViewport = true;
 }
 
 void Encoder::encodingFinished() {

@@ -3,23 +3,9 @@
 using namespace geode::prelude;
 
 Result<> GatoBot::setupRenderer() {
-    // TEMP
-    const int displayFPS = 60;
+    m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / m_renderParams.m_fps;
 
-    /*RenderParams params {
-        "libx264",
-        // "C:/Programming/gdmods/GatoBot/build/sex.mp4",
-        // "C:/Games/Geometry Dash GEODE/Resources/Dash.mp3",
-        "/storage/emulated/0/gbtestvideo.mp4",
-        "",
-        2400,
-        1080,
-        displayFPS
-    };*/
-
-    m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / displayFPS;
-
-    m_encoder = new Encoder(m_renderParams);
+    m_encoder = new Encoder(&m_renderParams);
 
     auto result = m_encoder->getLastResult();
 

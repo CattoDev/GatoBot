@@ -33,6 +33,7 @@ public:
 
     int getFPS();
     const char* statusToStr(BotStatus);
+    void applyRenderSettings(RenderParams* params);
     void createInputBackgrounds();
     void invalidInput();
     void selectMenu(SettingsMenuType menuType);

@@ -47,5 +47,10 @@ struct RenderParams {
     int m_width = 0;
     int m_height = 0;
     int m_fps = 0;
+    int m_videoBitrate;
+    int m_audioBitrate;
+
+    // set by the bot
     int m_frameFactor;
+    bool m_updateViewport = true;
 };
