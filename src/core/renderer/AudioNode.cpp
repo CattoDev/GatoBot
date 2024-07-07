@@ -66,9 +66,10 @@ geode::Result<> AudioNode::getLastResult() {
 }
 
 AVFrame* AudioNode::getFrame() {
-    av_init_packet(m_packet);
-    m_packet->data = NULL;
-    m_packet->size = 0;
+    //av_init_packet(m_packet);
+    
+    // m_packet->data = NULL;
+    // m_packet->size = 0;
 
     int ret = 0;
     if((ret = av_read_frame(m_formatContext, m_packet)) < 0) {
@@ -100,6 +101,9 @@ AVFrame* AudioNode::getFrame() {
         m_result = geode::Err("Failed to calculate data size!");
         return nullptr;
     }
+
+    // clean packet
+    av_packet_unref(m_packet);
 
     return m_frame;
 }

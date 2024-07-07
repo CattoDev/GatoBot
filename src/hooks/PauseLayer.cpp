@@ -1,7 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 
-#include <nodes/OverlayLayer.hpp>
+#include <nodes/layers/OverlayLayer.hpp>
 
 using namespace geode::prelude;
 
@@ -14,16 +14,16 @@ class $modify(GBPauseLayer, PauseLayer) {
         PauseLayer::customSetup();
 
         // add GatoBot button
-        auto btnSpr = CCSprite::create("logo.png"_spr);
+        auto btnSpr = CCSprite::createWithSpriteFrameName("GB_logo.png"_spr);
         btnSpr->setScale(.4f);
         auto btn = CCMenuItemSpriteExtra::create(btnSpr, this, menu_selector(GBPauseLayer::onBotMenu));
 
         // add to menu
         CCMenu* btnMenu = nullptr;
         for(size_t i = 0; i < this->getChildrenCount(); i++) {
-            if(btnMenu = typeinfo_cast<CCMenu*>(this->getChildren()->objectAtIndex(i))) {
-                break;
-            }
+            btnMenu = typeinfo_cast<CCMenu*>(this->getChildren()->objectAtIndex(i));
+
+            if(btnMenu) break;
         }
 
         if(!btnMenu) {

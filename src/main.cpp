@@ -8,7 +8,7 @@
 using namespace geode::prelude;
 
 #ifdef GB_DEBUG
-class $modify(CCKeyboardDispatcher) {
+/*class $modify(CCKeyboardDispatcher) {
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool keyDown, bool idk) {
 		if(keyDown) {
 			switch(key) {
@@ -65,5 +65,5 @@ class $modify(GameStatsManager) {
 $on_mod(Loaded) {
 	// force practice mode button
 	(void)Mod::get()->patch(reinterpret_cast<void*>(geode::base::get() + 0x2b3ae1), {0xEB});
-}
+}*/
 #endif

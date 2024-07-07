@@ -19,6 +19,8 @@ extern "C" {
 }
 
 Encoder::Encoder(RenderParams params) {
+    geode::log::debug("Encoder::Encoder()");
+
     m_renderParams = params;
 
     // setup encoder internals
@@ -31,7 +33,7 @@ Encoder::Encoder(RenderParams params) {
     }
 
     // render at higher resolution
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &m_oldFBO);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
 
     auto data = malloc(m_renderParams.m_width * m_renderParams.m_height * 3);
     memset(data, 0, m_renderParams.m_width * m_renderParams.m_height * 3);
@@ -44,31 +46,34 @@ Encoder::Encoder(RenderParams params) {
     // allocate frame buffer
     m_frameData.resize(m_renderParams.m_width * m_renderParams.m_height * 3);
 
-    glGetIntegerv(GL_RENDERBUFFER_BINDING_EXT, &m_oldRBO);
-    glGenFramebuffersEXT(1, &m_FBO);
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_FBO);
+    glGetIntegerv(GL_RENDERBUFFER_BINDING, &m_oldRBO);
+    glGenFramebuffers(1, &m_FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
 
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, m_renderTexture->getName(), NULL);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_renderTexture->getName(), 0);
 
     m_renderTexture->setAliasTexParameters();
     m_renderTexture->autorelease();
         
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_oldFBO);
-    glBindFramebufferEXT(GL_RENDERBUFFER_EXT, m_oldRBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_oldFBO);
+    glBindFramebuffer(GL_RENDERBUFFER, m_oldRBO);
 
     // setup done
     geode::log::debug("Encoder created.");
 }
 
 Encoder::~Encoder() {
-    av_frame_free(&m_RGBframe);
-    av_frame_free(&m_YUVframe);
-    av_frame_free(&m_audioFrameBuffer);
+    #define SAFE_FREE(func, var) if(var) geode::log::debug("Freeing {}", GEODE_STR(var)); func(&var);
 
-    avcodec_free_context(&m_videoCodecContext);
-    av_packet_free(&m_packet);
-    avformat_close_input(&m_formatContext);
-    sws_freeContext(m_swsContext);
+    SAFE_FREE(av_frame_free, m_RGBframe);
+    SAFE_FREE(av_frame_free, m_YUVframe);
+    SAFE_FREE(av_frame_free, m_audioFrameBuffer);
+
+    SAFE_FREE(avcodec_free_context, m_videoCodecContext);
+    SAFE_FREE(av_packet_free, m_packet);
+    SAFE_FREE(avformat_close_input, m_formatContext);
+
+    if (m_swsContext) sws_freeContext(m_swsContext);
 
     CC_SAFE_RELEASE(m_renderTexture);
 
@@ -76,6 +81,8 @@ Encoder::~Encoder() {
     for(auto& node : m_audioNodes) {
         if(node) delete node;
     }
+
+    geode::log::debug("Encoder freed");
 }
 
 geode::Result<> Encoder::getLastResult() {
@@ -86,9 +93,9 @@ std::vector<GLubyte>* Encoder::getFrameData() {
     return &m_frameData;
 }
 
-AVFrame* Encoder::allocateAVFrame(AVPixelFormat pixFmt, int width, int height) {
+AVFrame* Encoder::allocateAVFrame(int pixFmt, int width, int height) {
     auto frame = av_frame_alloc();
-    frame->format = pixFmt;
+    frame->format = static_cast<AVPixelFormat>(pixFmt);
 	frame->width = width;
 	frame->height = height;
     frame->pts = AV_NOPTS_VALUE;
@@ -99,14 +106,19 @@ AVFrame* Encoder::allocateAVFrame(AVPixelFormat pixFmt, int width, int height) {
 
 void Encoder::setupEncoder(const RenderParams& params) {
     // only mp4 format
-    const AVOutputFormat * outputFormat = av_guess_format("mp4", NULL, NULL);
+    const AVOutputFormat* outputFormat = av_guess_format("mp4", NULL, NULL);
+    if(outputFormat == NULL) {
+        m_result = geode::Err("Failed to get output format!");
+        return;
+    }
+
 	if(avformat_alloc_output_context2(&m_formatContext, outputFormat, NULL, params.m_outputPath.c_str()) != 0) {
-        m_result = geode::Err("Failed to allocate output context!");
+        m_result = geode::Err("Failed to allocate output format context! ({})", params.m_outputPath);
         return;
     }
 
     // find codec
-    if(!(m_videoCodec = avcodec_find_encoder_by_name(params.m_codec))) {
+    if(!(m_videoCodec = avcodec_find_encoder_by_name(params.m_codec.c_str()))) {
         m_result = geode::Err("Failed to find codec: {}", params.m_codec);
         return;
     }
@@ -125,7 +137,7 @@ void Encoder::setupEncoder(const RenderParams& params) {
     m_videoCodecContext->time_base = AVRational { 1, params.m_fps };
     m_videoCodecContext->framerate = AVRational { params.m_fps, 1 };
 
-    // Set Bitrate
+    // set bitrate
 	m_videoCodecContext->bit_rate = 5 * 1024 * 1024;
 	m_videoCodecContext->rc_buffer_size = 4 * 1000 * 1000;
 	m_videoCodecContext->rc_max_rate = 5 * 1024 * 1024;
@@ -171,7 +183,7 @@ void Encoder::setupEncoder(const RenderParams& params) {
     }
 
     // setup audio encoder
-    this->setupAudioEncoder(params);
+    //this->setupAudioEncoder(params);
 
     if(m_result.isErr()) return;
 
@@ -191,9 +203,9 @@ void Encoder::setupEncoder(const RenderParams& params) {
     }
 
     // allocate frames
-    m_RGBframe = this->allocateAVFrame(AV_PIX_FMT_RGB24, params.m_width, params.m_height);
-    m_YUVframe = this->allocateAVFrame(AV_PIX_FMT_YUV420P, params.m_width, params.m_height);
-
+    m_RGBframe = this->allocateAVFrame(2, params.m_width, params.m_height); // AV_PIX_FMT_RGB24
+    m_YUVframe = this->allocateAVFrame(0, params.m_width, params.m_height); // AV_PIX_FMT_YUV420P
+    
     // allocate packet
     m_packet = av_packet_alloc();
 
@@ -201,7 +213,7 @@ void Encoder::setupEncoder(const RenderParams& params) {
     m_swsContext = sws_getContext(params.m_width, params.m_height, AV_PIX_FMT_RGB24, params.m_width, params.m_height, AV_PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
 
     // setup audio decoder
-    this->setupAudioDecoder(params);
+    //this->setupAudioDecoder(params);
 
     // done
     geode::log::debug("Encoder configured!");
@@ -307,7 +319,6 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
     m_audioFrameBuffer = av_frame_alloc();
 
     m_audioFrameBuffer->format = m_audioCodecContext->sample_fmt;
-    m_audioFrameBuffer->channels = m_audioCodecContext->channels;
     m_audioFrameBuffer->sample_rate = m_audioCodecContext->sample_rate;
     m_audioFrameBuffer->nb_samples = m_audioCodecContext->frame_size;
     av_channel_layout_copy(&m_audioFrameBuffer->ch_layout, &m_audioCodecContext->ch_layout);
@@ -332,8 +343,6 @@ void Encoder::setupAudioDecoder(const RenderParams& params) {
 }
 
 void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video) {
-    // TODO: rewrite the conversion part in assembly
-
     // also temp: only for video
     if(frame && video) {
         geode::log::debug("Encoding frame: {}", frame->pts);
@@ -380,13 +389,11 @@ void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecC
 }
 
 void Encoder::processFrameData() {
-    // TODO: rewrite the conversion part in assembly (mmmmmmm speed)
+    // TODO: rewrite the conversion part
 
     // set frame data
-    for (unsigned int y = 0; y < m_RGBframe->height; y++)
-	{
-		for (unsigned int x = 0; x < m_RGBframe->width; x++)
-		{
+    for (unsigned int y = 0; y < m_RGBframe->height; y++) {
+		for (unsigned int x = 0; x < m_RGBframe->width; x++) {
             const int newY = m_RGBframe->height - y - 1;
 
             // copy and flip image vertically
@@ -415,7 +422,7 @@ void Encoder::processAudio() {
 
         while(loadedSamples < frame->nb_samples) {
             // add audio data to buffer
-            int n_channels = frame->channels;
+            const int n_channels = frame->ch_layout.nb_channels;
             int new_samples = std::min(frame->nb_samples - loadedSamples, m_audioCodecContext->frame_size - m_audioFrameBuffer->nb_samples);
             int curSamples = m_audioFrameBuffer->nb_samples;
 
@@ -425,7 +432,7 @@ void Encoder::processAudio() {
             d_out += n_channels * curSamples;
 
             for (int i = 0; i < new_samples; i++) {
-                for (int j = 0; j < frame->channels; j++) {
+                for (int j = 0; j < n_channels; j++) {
                     *d_out++ = *d_in++;
                 }
             }
@@ -447,30 +454,36 @@ void Encoder::processAudio() {
     }
 }
 
-void Encoder::captureCurrentFrame() {
+void Encoder::captureFrame() {
     // (stolen from CCRenderTexture lmao)
     // set viewport of custom res
     glViewport(0, 0, m_renderParams.m_width, m_renderParams.m_height);
 
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &m_oldFBO);
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_FBO);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
         
-    //visitPlayLayer(); // draw PlayLayer
-    PlayLayer::get()->visit(); // TEMP
+    // draw PlayLayer
+    this->visit();
 
     // read pixels
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, m_renderParams.m_width, m_renderParams.m_height, GL_RGB, GL_UNSIGNED_BYTE, m_frameData.data());
 
-    // reset viewport
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, m_oldFBO);
+    // reset settings
+    glBindFramebuffer(GL_FRAMEBUFFER, m_oldFBO);
     CCDirector::sharedDirector()->setViewport();
 
     // process video frame
     this->processFrameData();
 
     // process audio frame
-    this->processAudio();
+    //this->processAudio();
+}
+
+void Encoder::visit() {
+    PlayLayer::get()->visit(); // TEMP
+
+    // TODO: rewrite PlayLayer::visit to allow text on top of a rendering scene
 }
 
 void Encoder::encodingFinished() {

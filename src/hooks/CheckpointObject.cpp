@@ -5,8 +5,12 @@
 
 using namespace geode::prelude;
 
+// TODO: FIX (inlined)
+/*
 class $modify(GBCheckpoint, CheckpointObject) {
-    FrameState frameState;
+    struct Fields {
+        FrameState frameState;
+    };
 
     static CheckpointObject* create() {
         auto checkpoint = as<GBCheckpoint*>(CheckpointObject::create());
@@ -16,4 +20,4 @@ class $modify(GBCheckpoint, CheckpointObject) {
 
         return checkpoint;
     }
-};
+};*/

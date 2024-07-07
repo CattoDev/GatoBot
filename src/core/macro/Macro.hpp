@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Types.hpp"
+#include <filesystem>
 
 class Macro {
 private:
@@ -26,6 +27,6 @@ public:
     static PlayerButtonCommand unpackAction(const PackedAction& action);
     void recordingFinished();
 
-    void saveFile(const std::string& filePath);
-    void loadFile(const std::string& filePath);
+    void saveFile(std::filesystem::path& filePath);
+    void loadFile(std::filesystem::path& filePath);
 };

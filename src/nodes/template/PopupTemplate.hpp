@@ -11,7 +11,7 @@ public:
 public:
     virtual void show() override;
 
-    bool init();
+    bool init() override;
     void incrementForcePrio();
     void setBackground(geode::prelude::CCSize const&);
 };

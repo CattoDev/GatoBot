@@ -13,10 +13,11 @@
 #include <Geode/binding/PlayLayer.hpp>
 
 class GatoBot {
-//private:
-public:
+private:
+//public:
     BotStatus m_status = BotStatus::Idle;
     Macro m_loadedMacro;
+    RenderParams m_renderParams;
     int m_currentFrame = 0;
     float m_firstSPF;
     float m_mainSpeed = 1.f;
@@ -26,9 +27,10 @@ public:
     static GatoBot* get();
     static PlayLayer* getPlayLayer();
 
-    void changeStatus(BotStatus newStatus);
+    geode::Result<> changeStatus(BotStatus newStatus);
 
     int getGameFPS();
+    void setGameSPF(double spf);
     void setGameFPS(int fps);
     void setMainSpeed(float speed);
     float getMainSpeed();
@@ -38,7 +40,9 @@ public:
     void resetMacro();
     int getCurrentFrameNum();
     Macro& getMacro();
-    void setupRenderer();
+    RenderParams* getRenderParams();
+    void applyRenderParams(const RenderParams& params);
+    geode::Result<> setupRenderer();
 
     void updatePlayLayer(float& dt);
     void updateCommon(float& dt);

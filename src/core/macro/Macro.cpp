@@ -153,7 +153,7 @@ void Macro::recordingFinished() {
     GB_LOG("Macro::recordingFinished");
 }
 
-void Macro::saveFile(const std::string& filePath) {
+void Macro::saveFile(std::filesystem::path& filePath) {
     /*
         MACRO FORMAT:
         - [1] {4 bytes} Frame count
@@ -166,6 +166,11 @@ void Macro::saveFile(const std::string& filePath) {
         - [3] {1 byte * Click count} Click data(s)
     */
     std::vector<unsigned char> macroData;
+
+    // fix path
+    if(!filePath.has_extension()) {
+        filePath.replace_extension(".gbb");
+    }
 
     // frame count (constantly 4 bytes)
     addToByteVector(macroData, this->getFrameCount());
@@ -198,7 +203,7 @@ void Macro::saveFile(const std::string& filePath) {
     file.close();
 }
 
-void Macro::loadFile(const std::string& filePath) {
+void Macro::loadFile(std::filesystem::path& filePath) {
     // TEMP: clear before loading
     this->clearFramesFrom(0);
 

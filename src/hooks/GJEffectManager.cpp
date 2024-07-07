@@ -6,9 +6,9 @@
 using namespace geode::prelude;
 
 class $modify(GJEffectManager) {
-    void playerDied() {
+    /*void playerDied() {
         GatoBot::get()->finishPlayback();
 
         GJEffectManager::playerDied();
-    }
+    }*/
 };

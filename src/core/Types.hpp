@@ -32,18 +32,20 @@ struct LevelFrame {
     // PlayerData m_player1;
     // PlayerData m_player2;
 
-    gd::vector<PlayerButtonCommand> m_commands;
+    //gd::vector<PlayerButtonCommand> m_commands;
+    std::vector<PlayerButtonCommand> m_commands;
 
     // only used in recording
     FrameState m_frameState;
 };
 
 struct RenderParams {
-    const char* m_codec;
+    std::string m_codec;
     std::string m_outputPath;
     std::string m_songPath;
 
-    int m_width;
-    int m_height;
-    int m_fps;
+    int m_width = 0;
+    int m_height = 0;
+    int m_fps = 0;
+    int m_frameFactor;
 };

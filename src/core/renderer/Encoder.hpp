@@ -11,7 +11,6 @@ class AVCodecContext;
 class AVPacket;
 class AVFrame;
 class AVFormatContext;
-enum AVPixelFormat;
 class AVStream;
 class SwsContext;
 
@@ -21,16 +20,16 @@ private:
 
     const AVCodec* m_videoCodec;
     const AVCodec* m_audioCodec;
-    AVCodecContext* m_videoCodecContext;
-    AVCodecContext* m_audioCodecContext;
-    AVPacket* m_packet;
-    AVFrame* m_RGBframe;
-    AVFrame* m_YUVframe;
-    AVFrame* m_audioFrameBuffer;
-    AVFormatContext* m_formatContext;
-    AVStream* m_videoStream;
-    AVStream* m_audioStream;
-    SwsContext* m_swsContext;
+    AVCodecContext* m_videoCodecContext = nullptr;
+    AVCodecContext* m_audioCodecContext = nullptr;
+    AVPacket* m_packet = nullptr;
+    AVFrame* m_RGBframe = nullptr;
+    AVFrame* m_YUVframe = nullptr;
+    AVFrame* m_audioFrameBuffer = nullptr;
+    AVFormatContext* m_formatContext = nullptr;
+    AVStream* m_videoStream = nullptr;
+    AVStream* m_audioStream = nullptr;
+    SwsContext* m_swsContext = nullptr;
 
     double m_videoTime = 0;
     double m_audioTime = 0;
@@ -39,7 +38,7 @@ private:
     
     geode::Result<> m_result;
     std::vector<GLubyte> m_frameData;
-    cocos2d::CCTexture2D* m_renderTexture;
+    cocos2d::CCTexture2D* m_renderTexture = nullptr;
     int m_currentFrame = 0;
     std::vector<AudioNode*> m_audioNodes;
 
@@ -48,7 +47,7 @@ private:
     GLint m_oldRBO;
 
 private:
-    AVFrame* allocateAVFrame(AVPixelFormat pixFmt, int width, int height);
+    AVFrame* allocateAVFrame(int pixFmt, int width, int height);
     void setupEncoder(const RenderParams& params);
     void setupAudioEncoder(const RenderParams& params);
     void setupAudioDecoder(const RenderParams& params);
@@ -62,6 +61,7 @@ public:
     std::vector<GLubyte>* getFrameData();
     void processFrameData();
     void processAudio();
-    void captureCurrentFrame();
+    void captureFrame();
+    void visit();
     void encodingFinished();
 };

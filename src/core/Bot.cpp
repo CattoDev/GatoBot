@@ -2,7 +2,7 @@
 
 using namespace geode::prelude;
 
-GatoBot* g_instance = nullptr;
+GatoBot* g_botInstance = nullptr;
 
 // debug func (temp)
 std::string statToStr(BotStatus stat) {
@@ -30,27 +30,27 @@ std::string statToStr(BotStatus stat) {
 }
 
 GatoBot* GatoBot::get() {
-    if(!g_instance) {
-        g_instance = new GatoBot();
+    if(!g_botInstance) {
+        g_botInstance = new GatoBot();
     }
 
-    return g_instance;
+    return g_botInstance;
 }
 
 PlayLayer* GatoBot::getPlayLayer() {
-    //return TEMP_MBO(PlayLayer*, GameManager::sharedState(), 0x198);
     return GameManager::sharedState()->getPlayLayer();
 }
 
-void GatoBot::changeStatus(BotStatus newStatus) {
-    if(m_status == newStatus) return;
+Result<> GatoBot::changeStatus(BotStatus newStatus) {
+    Result<> result = Ok();
+    
+    if(m_status == newStatus) return result;
 
     // switch to idle first if not already
     if(m_status != Idle && newStatus != Idle) {
-        this->changeStatus(BotStatus::Idle);
-        this->changeStatus(newStatus);
-        
-        return;
+        (void)this->changeStatus(BotStatus::Idle);
+
+        return this->changeStatus(newStatus);
     }
 
     switch(newStatus) {
@@ -63,7 +63,13 @@ void GatoBot::changeStatus(BotStatus newStatus) {
         } break;
 
         case Rendering: {
-            this->setupRenderer();
+            // set up the renderer 
+            result = this->setupRenderer();
+
+            // failed to set up renderer
+            if(result.isErr()) {
+                newStatus = BotStatus::Idle;
+            }
         } break;
         
         default: { // Idle
@@ -77,7 +83,7 @@ void GatoBot::changeStatus(BotStatus newStatus) {
 
         // restart attempt
         if(auto pLayer = this->getPlayLayer()) {
-            //pLayer->resetLevel();
+            pLayer->resetLevel();
         }
     }
 
@@ -86,6 +92,8 @@ void GatoBot::changeStatus(BotStatus newStatus) {
     GB_LOG("Changed status {} => {}", statToStr(m_status).c_str(), statToStr(newStatus).c_str());
 
     m_status = newStatus;
+
+    return result;
 }
 
 int GatoBot::getGameFPS() {
@@ -96,8 +104,18 @@ int GatoBot::getGameFPS() {
     return static_cast<int>(std::round(1.f / interval));
 }
 
+void GatoBot::setGameSPF(double spf) {
+    CCDirector::sharedDirector()->setAnimationInterval(spf);
+
+    CCApplication::sharedApplication()->setAnimationInterval(spf);
+
+    GB_LOG("setGameSPF: {}", spf);
+}
+
 void GatoBot::setGameFPS(int fps) {
-    CCDirector::sharedDirector()->setAnimationInterval(1.f / static_cast<float>(fps));
+    //CCDirector::sharedDirector()->setAnimationInterval(1.f / static_cast<float>(fps));
+
+    this->setGameSPF((double)(1.f / static_cast<float>(fps)));
 }
 
 void GatoBot::setMainSpeed(float speed) {
@@ -114,10 +132,13 @@ bool GatoBot::canPerform() {
     if(!pLayer)
         return false;
 
+    //log::debug("{}", offsetof(GJBaseGameLayer, m_started));
+
     return 
         !(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())   
      //&& TEMP_MBO(bool, pLayer, 0x2ac8) // levelStarted (PlayLayer::startGame)
-     && TEMP_MBO(bool, pLayer, 0x2ad0) // levelStarted (PlayLayer::startGame)
+     //&& TEMP_MBO(bool, pLayer, 0x2ad0) // levelStarted (PlayLayer::startGame)
+     && pLayer->m_started
     ;
 }
 
@@ -144,11 +165,17 @@ Macro& GatoBot::getMacro() {
     return m_loadedMacro;
 }
 
+RenderParams* GatoBot::getRenderParams() {
+    return &m_renderParams;
+}
+
+void GatoBot::applyRenderParams(const RenderParams& params) {
+    m_renderParams = params;
+}
+
 void GatoBot::updatePlayLayer(float& dt) {
     // game paused
-    // [PlayLayer + 0x2ef7] not anymore
-    // PlayLayer + 0x2f17
-    const bool gamePaused = this->getPlayLayer() != nullptr ? TEMP_MBO(bool, this->getPlayLayer(), 0x2f17) : true;
+    const bool gamePaused = this->getPlayLayer() != nullptr ? this->getPlayLayer()->m_isPaused : true;
 
     if(m_status != BotStatus::Idle && !gamePaused) {
         this->updateCommon(dt);
@@ -165,6 +192,8 @@ void GatoBot::updatePlayLayer(float& dt) {
             case Rendering: {
                 this->updateRendering();
             } break;
+
+            default: break;
         }
     }
 }
@@ -173,7 +202,7 @@ void GatoBot::updateCommon(float& dt) {
     if(m_status != Recording) {
         // out of frames
         if(m_currentFrame >= m_loadedMacro.getFrameCount()) {
-            this->changeStatus(BotStatus::Idle);
+            (void)this->changeStatus(BotStatus::Idle);
             return;
         }
     }
@@ -182,7 +211,7 @@ void GatoBot::updateCommon(float& dt) {
     float deltaTime = m_loadedMacro.getDeltaTime();
     
     dt = deltaTime;
-    CCDirector::sharedDirector()->setAnimationInterval((double)deltaTime / (double)this->getMainSpeed());
+    this->setGameSPF((double)deltaTime / (double)this->getMainSpeed());
 }
 
 void GatoBot::onLevelReset() {
@@ -192,40 +221,7 @@ void GatoBot::onLevelReset() {
 
     // practice mode
     auto pLayer = this->getPlayLayer();
-    //bool practiceMode = TEMP_MBO(bool, pLayer, 0x2a74);
-    auto checkpoints = TEMP_MBO(CCArray*, pLayer, 0x2e18);
-
-    /*if(m_status == Recording) {
-        if(!practiceMode || !checkpoints->count()) {
-            m_currentFrame = 0;
-            m_loadedMacro.clearFramesFrom(0);
-        }
-        else {
-            // 
-        }
-    }
-    else {
-        m_currentFrame = 0;
-    }*/
-
-    /*if(m_status == Recording) {
-        // fix frames 
-        if(pLayer->m_isPracticeMode && checkpoints->count()) {
-            //this->loadFrameState(this->getLastFrameState());
-        }
-        else {
-            m_currentFrame = 0;
-        }
-
-        m_loadedMacro.clearFramesFrom(m_currentFrame);
-    }
-    else {
-        m_currentFrame = 0;
-    }
-
-    TEMP_MBO(double, pLayer, 0x2ac8) = 0;
-    TEMP_MBO(int, pLayer, 0x2b04) = 0;
-    TEMP_MBO(float, pLayer, 0x2d0) = 1.f;*/
+    const auto checkpoints = pLayer->m_checkpointArray;
 
     if(!(pLayer->m_isPracticeMode && checkpoints->count())) {
         m_currentFrame = 0;
@@ -234,9 +230,13 @@ void GatoBot::onLevelReset() {
             m_loadedMacro.clearFramesFrom(m_currentFrame);
         }
 
-        TEMP_MBO(double, pLayer, 0x2ac8) = 0;
-        TEMP_MBO(int, pLayer, 0x2b04) = 0;
-        TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
+        //TEMP_MBO(double, pLayer, 0x2ac8) = 0;
+        //TEMP_MBO(int, pLayer, 0x2b04) = 0;
+        //TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
+
+        TEMP_MBO(double, pLayer, 0x3248) = 0;
+        TEMP_MBO(int, pLayer, 0x329c) = 0;
+        TEMP_MBO(float, pLayer, 0x330) = 1.f;
     }
     else {
 
@@ -249,9 +249,10 @@ FrameState GatoBot::createFrameState() {
     auto pLayer = this->getPlayLayer();
 
     state.m_frame = m_currentFrame;
-    state.m_unk1 = TEMP_MBO(double, pLayer, 0x2ac8);
-    state.m_unk2 = TEMP_MBO(int, pLayer, 0x2b04);
-    state.m_unk3 = TEMP_MBO(float, pLayer, 0x2d0);
+
+    state.m_unk1 = TEMP_MBO(double, pLayer, 0x3248);
+    state.m_unk2 = TEMP_MBO(int, pLayer, 0x329c);
+    state.m_unk3 = TEMP_MBO(float, pLayer, 0x330);
     
     return state;
 }
@@ -266,9 +267,9 @@ void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
     auto pLayer = this->getPlayLayer();
 
     m_currentFrame = state.m_frame;
-    TEMP_MBO(double, pLayer, 0x2ac8) = state.m_unk1;
-    TEMP_MBO(int, pLayer, 0x2b04) = state.m_unk2;
-    TEMP_MBO(float, pLayer, 0x2d0) = state.m_unk3;
+    TEMP_MBO(double, pLayer, 0x3248) = state.m_unk1;
+    TEMP_MBO(int, pLayer, 0x329c) = state.m_unk2;
+    TEMP_MBO(float, pLayer, 0x330) = state.m_unk3;
 
     // clear frames after current framestate
     if(clearFrames) {
@@ -279,7 +280,8 @@ void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
 void GatoBot::botFinished(BotStatus oldStatus) {
     GB_LOG("botFinished => m_firstSPF: {}", m_firstSPF);
 
-    CCDirector::sharedDirector()->setAnimationInterval(m_firstSPF);
+    //CCDirector::sharedDirector()->setAnimationInterval(m_firstSPF);
+    this->setGameSPF(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);
 
     if(oldStatus == Recording) {
@@ -295,5 +297,5 @@ void GatoBot::botFinished(BotStatus oldStatus) {
 void GatoBot::finishPlayback() {
     if(!this->isPlayback()) return;
 
-    this->changeStatus(BotStatus::Idle);
+    (void)this->changeStatus(BotStatus::Idle);
 }

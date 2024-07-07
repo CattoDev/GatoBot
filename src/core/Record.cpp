@@ -21,7 +21,13 @@ void GatoBot::updateRecording() {
     // };
 
     // get queued buttons
-    auto buttons = pLayer->m_queuedButtons;
+    gd::vector<PlayerButtonCommand> _buttonsRaw = pLayer->m_queuedButtons;
+
+    // (convert to std::vector)
+    std::vector<PlayerButtonCommand> buttons;
+    for(PlayerButtonCommand& button : _buttonsRaw) {
+        buttons.push_back(button);
+    }
 
     // add frame
     // LevelFrame frame { m_currentFrame, player1, player2, buttons, this->createFrameState() };

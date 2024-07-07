@@ -2,25 +2,36 @@
 
 using namespace geode::prelude;
 
-void GatoBot::setupRenderer() {
-    //m_encoder = new Encoder(600, 800, "libx264");
+Result<> GatoBot::setupRenderer() {
     // TEMP
-    RenderParams params {
+    const int displayFPS = 60;
+
+    /*RenderParams params {
         "libx264",
-        "C:/Programming/gdmods/GatoBot/build/sex.mp4",
-        "C:/Games/Geometry Dash GEODE/Resources/Dash.mp3",
-        1600,
-        900,
-        75
-    };
+        // "C:/Programming/gdmods/GatoBot/build/sex.mp4",
+        // "C:/Games/Geometry Dash GEODE/Resources/Dash.mp3",
+        "/storage/emulated/0/gbtestvideo.mp4",
+        "",
+        2400,
+        1080,
+        displayFPS
+    };*/
 
-    m_encoder = new Encoder(params);
+    m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / displayFPS;
 
-    if(m_encoder->getLastResult().isErr()) {
+    m_encoder = new Encoder(m_renderParams);
+
+    auto result = m_encoder->getLastResult();
+
+    // failed to create Encoder
+    if(result.isErr()) {
         geode::log::error("{}", m_encoder->getLastResult().unwrapErr());
+
+        // free Encoder
+        CC_SAFE_DELETE(m_encoder);
     }
 
-    //CC_SAFE_DELETE(m_encoder);
+    return result;
 }
 
 void GatoBot::updateRendering() {
@@ -28,11 +39,14 @@ void GatoBot::updateRendering() {
     this->updateReplaying();
 
     // capture frame
-    m_encoder->captureCurrentFrame();
+    if(m_currentFrame % m_renderParams.m_frameFactor == 0) {
+        m_encoder->captureFrame();
+    }
 
     // check for errors
     if(m_encoder->getLastResult().isErr()) {
         log::error("Rendering error: {}", m_encoder->getLastResult().unwrapErr());
-        this->changeStatus(BotStatus::Idle);
+
+        (void)this->changeStatus(BotStatus::Idle);
     }
 }

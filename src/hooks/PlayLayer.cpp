@@ -13,7 +13,7 @@ class $modify(PlayLayer) {
         auto bot = GatoBot::get();
 
         // fix button release on restart
-        auto buttons = m_queuedButtons;
+        gd::vector<PlayerButtonCommand> buttons = m_queuedButtons;
 
         PlayLayer::resetLevel();
 
@@ -26,7 +26,7 @@ class $modify(PlayLayer) {
         bot->onLevelReset();
     }
 
-    void loadFromCheckpoint(CheckpointObject* obj) {
+    /*void loadFromCheckpoint(CheckpointObject* obj) {
         PlayLayer::loadFromCheckpoint(obj);
 
         if(!obj) {
@@ -39,7 +39,7 @@ class $modify(PlayLayer) {
         if(checkpoint->m_fields->frameState.m_frame) {
             GatoBot::get()->loadFrameState(checkpoint->m_fields->frameState);
         }
-    }
+    }*/
 
     void resume() {
         // fix frame delta inaccuracy

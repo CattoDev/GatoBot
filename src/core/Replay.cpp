@@ -36,7 +36,7 @@ void GatoBot::updateReplaying() {
 
     // queue buttons
     if(frame.m_commands.size()) {
-        for(auto& cmd : frame.m_commands) {
+        for(const PlayerButtonCommand& cmd : frame.m_commands) {
             pLayer->queueButton(static_cast<int>(cmd.m_button), cmd.m_isPush, cmd.m_isPlayer2);
 
             GB_LOG("[{}] {} {} {}", m_currentFrame, static_cast<int>(cmd.m_button), cmd.m_isPush, cmd.m_isPlayer2);

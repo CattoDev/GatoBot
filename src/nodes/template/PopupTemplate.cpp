@@ -21,6 +21,7 @@ bool PopupTemplate::init() {
         return false;
 
     // incrementForcePrio() is inlined on windows
+    this->registerWithTouchDispatcher();
     this->incrementForcePrio();
     this->setTouchEnabled(true);
     this->setKeypadEnabled(true);
@@ -52,7 +53,6 @@ void PopupTemplate::setBackground(CCSize const& size) {
     // border
     if(!m_bgBorder) {
         m_bgBorder = extension::CCScale9Sprite::create("GJ_square07.png", { 0.f, 0.f, 80.f, 80.f });
-        //m_bgBorder = extension::CCScale9Sprite::create("GB_blankBtn_001.png"_spr, { 0.f, 0.f, 40.f, 40.f });
         m_bgBorder->setPosition(winSize / 2);
 
         m_mainLayer->addChild(m_bgBorder);
