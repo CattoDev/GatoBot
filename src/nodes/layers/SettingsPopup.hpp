@@ -13,6 +13,7 @@ public:
 
     BotStatus m_status;
     std::vector<CCTextInputNode*> m_inputNodes;
+    std::vector<CCMenuItemToggler*> m_toggles;
     RenderParams m_renderParams;
 
     SettingsSection* m_checkboxesSection;
@@ -30,6 +31,7 @@ public:
     geode::prelude::CCSize createMenuForStatus(BotStatus);
     CCMenuItemSpriteExtra* createButton(const char* caption, const char* texture, float scale, geode::prelude::SEL_MenuHandler cb);
     CCTextInputNode* createInput(const char* caption, geode::prelude::CCSize size, std::string filter = "");
+    void createCheckbox(const char* caption, const char* key, bool toggled, std::string infoText = "");
 
     int getFPS();
     const char* statusToStr(BotStatus);
@@ -39,6 +41,7 @@ public:
     void selectMenu(SettingsMenuType menuType);
 
     void onMenuType(CCObject*);
+    void onToggle(CCObject*);
     void onStart(CCObject*);
     void onClose(CCObject*);
 };

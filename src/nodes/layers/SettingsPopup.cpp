@@ -80,11 +80,15 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
 
     // Render
     if(status == Rendering) {
-        // checkboxes scroll layer
-        m_checkboxesSection = SettingsSection::create("Options", { 100.f, layerSize.height - 70.f });
-        m_checkboxesSection->setPosition({ -160.f, 5.f });
+        // checkboxes section
+        {
+            m_checkboxesSection = SettingsSection::create("Options", { 100.f, layerSize.height - 70.f });
+            m_checkboxesSection->setPosition({ -160.f, 5.f });
 
-        m_buttonMenu->addChild(m_checkboxesSection);
+            m_buttonMenu->addChild(m_checkboxesSection);
+
+            this->createCheckbox("Include song", "include-song", true, "Include the level song.");
+        }
 
         // settings menu buttons
         {
@@ -186,6 +190,26 @@ CCTextInputNode* SettingsPopup::createInput(const char* caption, CCSize size, st
     return input;
 }
 
+void SettingsPopup::createCheckbox(const char* caption, const char* key, bool toggled, std::string infoText) {
+    auto secSize = m_checkboxesSection->getContentSize();
+    CCPoint topLeft = { -secSize.width / 2 + 15.f, secSize.height / 2 - 35.f };
+    
+    // create the checkbox
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(this, menu_selector(SettingsPopup::onToggle), .6f);
+    toggle->setPosition(topLeft + CCPoint { 0.f, -25.f * static_cast<float>(m_toggles.size()) });
+    
+    m_checkboxesSection->addChild(toggle);
+    m_toggles.push_back(toggle);
+
+    // create caption label
+    auto label = CCLabelBMFont::create(caption, "bigFont.fnt");
+    label->setAnchorPoint(CCPoint { 0.f, .5f });
+    label->setPosition(toggle->getPosition() + CCPoint { 15.f, 0.f });
+    label->limitLabelWidth(65.f, .4f, .1f);
+
+    m_checkboxesSection->addChild(label);
+}
+
 int SettingsPopup::getFPS() {
     if(m_status == Recording) {
         return GatoBot::get()->getGameFPS();
@@ -255,10 +279,16 @@ void SettingsPopup::selectMenu(SettingsMenuType menuType) {
     }
 }
 
-void SettingsPopup::onMenuType(CCObject* target) {
-    const int tag = typeinfo_cast<HighlightedButton*>(target)->getTag();
+void SettingsPopup::onMenuType(CCObject* sender) {
+    const int tag = typeinfo_cast<HighlightedButton*>(sender)->getTag();
 
     this->selectMenu(static_cast<SettingsMenuType>(tag));
+}
+
+void SettingsPopup::onToggle(CCObject* sender) {
+    const int tag = typeinfo_cast<HighlightedButton*>(sender)->getTag();
+
+
 }
 
 void SettingsPopup::onStart(CCObject*) {

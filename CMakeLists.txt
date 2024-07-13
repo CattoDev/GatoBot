@@ -24,14 +24,8 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 # link ffmpeg
 if(WIN32) 
-message("Compiling for: WINDOWS")
-
-	# https://github.com/getsentry/sentry-native/issues/173
-	set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS} /D \"SAFESEH:NO\"")
-	set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
-	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
-
+	message("Compiling for: WINDOWS")
+	
 	file(GLOB FFMPEG_LIBS
 		external/ffmpeg/bin/win/avcodec.lib
 		external/ffmpeg/bin/win/avutil.lib
