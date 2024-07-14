@@ -3,6 +3,7 @@
 using namespace geode::prelude;
 
 Result<> GatoBot::setupRenderer() {
+    // TODO: error checking
     m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / m_renderParams.m_fps;
 
     m_encoder = new Encoder(&m_renderParams);
@@ -24,8 +25,8 @@ void GatoBot::updateRendering() {
     // update replay
     this->updateReplaying();
 
-    // capture frame
-    if(m_currentFrame % m_renderParams.m_frameFactor == 0) {
+    // prepare frame for rendering
+    if(this->canPerform() && m_currentFrame % m_renderParams.m_frameFactor == 0) {
         m_encoder->captureFrame();
     }
 

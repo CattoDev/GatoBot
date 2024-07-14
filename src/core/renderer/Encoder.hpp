@@ -2,6 +2,7 @@
 
 #include <Geode/utils/Result.hpp>
 #include <Geode/cocos/platform/win32/CCGL.h>
+#include <Geode/cocos/cocoa/CCGeometry.h>
 #include <core/Types.hpp>
 
 #include "AudioNode.hpp"
@@ -64,4 +65,6 @@ public:
     void captureFrame();
     void visit();
     void encodingFinished();
+
+    static cocos2d::CCSize getDesignResolution(int width, int height);
 };

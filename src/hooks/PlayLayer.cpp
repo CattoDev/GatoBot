@@ -1,7 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 
-#include "core/Bot.hpp"
+#include <core/Bot.hpp>
 
 // incredible
 #include "CheckpointObject.cpp"
@@ -22,8 +22,23 @@ class $modify(PlayLayer) {
                 this->queueButton(static_cast<int>(cmd.m_button), cmd.m_isPush, cmd.m_isPlayer2);
             }
         }
-
+ 
         bot->onLevelReset();
+    }
+
+    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
+        //auto visSize = CCDirector::get()->getVisibleSize();
+        //log::debug("{} {}", visSize.width, visSize.height);
+
+        if(!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+
+        auto bot = GatoBot::get();
+
+        if(bot->getStatus() != Rendering) return true;
+
+        // Rendering stuff
+
+        return true;
     }
 
     /*void loadFromCheckpoint(CheckpointObject* obj) {

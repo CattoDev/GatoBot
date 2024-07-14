@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <Geode/binding/PlayerButtonCommand.hpp>
+#include <Geode/cocos/cocoa/CCGeometry.h>
 
 enum BotStatus { Idle, Recording, Replaying, Rendering };
 
@@ -53,4 +54,6 @@ struct RenderParams {
     // set by the bot
     int m_frameFactor;
     bool m_updateViewport = true;
+    cocos2d::CCSize m_originalDesignRes;
+    cocos2d::CCSize m_newDesignRes;
 };

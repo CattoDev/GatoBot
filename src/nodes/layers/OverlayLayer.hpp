@@ -4,6 +4,9 @@
 
 class OverlayLayer : public PopupTemplate {
 public:
+    ~OverlayLayer();
+
+public:
     static OverlayLayer* get();
     static void display();
     static void close();

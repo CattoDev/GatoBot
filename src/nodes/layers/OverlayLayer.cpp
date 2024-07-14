@@ -8,6 +8,10 @@ using namespace geode::prelude;
 
 OverlayLayer* g_instance = nullptr;
 
+OverlayLayer::~OverlayLayer() {
+    g_instance = nullptr;
+}
+
 OverlayLayer* OverlayLayer::get() {
     if(!g_instance) {
         g_instance = new OverlayLayer();
@@ -124,23 +128,6 @@ void OverlayLayer::onRender(CCObject*) {
 
     // open render settings menu
     SettingsPopup::create(BotStatus::Rendering)->show();
-
-    //SettingsPopup::create(BotStatus::Rendering)->show();
-
-    // temp until I make a menu
-    /*auto bot = GatoBot::get();
-
-    if(bot->getStatus() == BotStatus::Rendering) {
-        (void)bot->changeStatus(BotStatus::Idle);
-        return;
-    }
-
-    auto result = GatoBot::get()->changeStatus(BotStatus::Rendering);
-
-    // failed to set up the renderer
-    if(result.isErr()) {
-        GBAlertLayer::create("Error", fmt::format("<cr>Failed to set up the renderer:</c>\n{}", result.unwrapErr()), "OK")->show();
-    }*/
 }
 
 void OverlayLayer::onSave(CCObject*) {

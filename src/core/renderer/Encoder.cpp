@@ -32,7 +32,7 @@ Encoder::Encoder(RenderParams* params) {
         return;
     }
 
-    // render at higher resolution
+    // render at any resolution
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
 
     auto data = malloc(m_renderParams->m_width * m_renderParams->m_height * 3);
@@ -348,6 +348,7 @@ void Encoder::setupAudioDecoder(const RenderParams& params) {
 
 void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video) {
     // also temp: only for video
+    // TODO: change
     if(frame && video) {
         geode::log::debug("Encoding frame: {}", frame->pts);
 
@@ -421,6 +422,7 @@ void Encoder::processAudio() {
     AVFrame* frame = nullptr;
     int loadedSamples = 0;
 
+    // only works for 1 node atm
     while((m_audioTime < m_videoTime) && (frame = m_audioNodes[0]->getFrame())) {
         int loadedSamples = 0;
 
@@ -459,8 +461,9 @@ void Encoder::processAudio() {
 }
 
 void Encoder::captureFrame() {
-    // (stolen from CCRenderTexture lmao)
-    // set viewport of custom res
+    auto dir = CCDirector::get();
+    
+    // set custom viewport
     glViewport(0, 0, m_renderParams->m_width, m_renderParams->m_height);
 
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_oldFBO);
@@ -475,8 +478,11 @@ void Encoder::captureFrame() {
 
     // reset settings
     glBindFramebuffer(GL_FRAMEBUFFER, m_oldFBO);
-    CCDirector::sharedDirector()->setViewport();
-
+    
+    //view->setDesignResolutionSize(m_renderParams->m_originalDesignRes.width, m_renderParams->m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
+    //dir->setProjection(dir->getProjection());
+    //dir->setViewport();
+    
     // process video frame
     this->processFrameData();
 
@@ -512,4 +518,10 @@ void Encoder::encodingFinished() {
     av_write_trailer(m_formatContext);
 
     log::debug("Encoder::encodingFinished");
+}
+
+cocos2d::CCSize Encoder::getDesignResolution(int width, int height) {
+    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+
+    return { roundf(320.f * aspectRatio), 320.f };
 }

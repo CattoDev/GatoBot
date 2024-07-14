@@ -44,8 +44,10 @@ public:
     geode::Result<> setupRenderer();
     void toggleHook(const std::string& hookName, bool toggle);
     void updateHooks();
+    void applyWinSize();
+    void restoreWinSize();
 
-    void updatePlayLayer(float& dt);
+    void updateBot(float& dt);
     void updateCommon(float& dt);
     void updateRecording();
     void updateReplaying();

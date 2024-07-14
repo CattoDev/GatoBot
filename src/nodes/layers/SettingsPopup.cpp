@@ -342,22 +342,44 @@ void SettingsPopup::onStart(CCObject*) {
 
     if(!settingsApplied) return;
 
+    auto dir = CCDirector::get();
+    auto view = CCEGLView::get();
+
+    // Rendering settings: change aspect ratio if needed
     if(m_status == BotStatus::Rendering) {
+        auto oldDesignRes = view->getDesignResolutionSize();
+        auto newDesignRes = Encoder::getDesignResolution(m_renderParams.m_width, m_renderParams.m_height);
+
+        m_renderParams.m_originalDesignRes = oldDesignRes;
+        m_renderParams.m_newDesignRes = newDesignRes;
+
         bot->applyRenderParams(m_renderParams);
     }
 
     // start
     auto result = bot->changeStatus(m_status);
     if(result.isOk()) {
-        // close layer
-        this->onClose(nullptr);
+        if(m_status == BotStatus::Rendering) {
+            // apply new aspect ratio
+            if(m_renderParams.m_originalDesignRes != m_renderParams.m_newDesignRes) {
+                bot->applyWinSize();
+            }
 
-        // close gatobot menu
-        OverlayLayer::close();
+            // reload PlayLayer
+            bot->getPlayLayer()->m_loadingLayer = GJGameLoadingLayer::transitionToLoadingLayer(bot->getPlayLayer()->m_level, false);
+        }
+        // Recording / Replaying settings: just close the menu and begin
+        else {
+            // close layer
+            this->onClose(nullptr);
 
-        // close PauseLayer and restart
-        if(auto pause = typeinfo_cast<PauseLayer*>(CCDirector::sharedDirector()->getRunningScene()->getChildByID("PauseLayer"))) {
-            pause->onRestart(nullptr);
+            // close gatobot menu
+            OverlayLayer::close();
+
+            // close PauseLayer and restart
+            if(auto pause = typeinfo_cast<PauseLayer*>(CCDirector::sharedDirector()->getRunningScene()->getChildByID("PauseLayer"))) {
+                pause->onRestart(nullptr);
+            }
         }
     }
     else {

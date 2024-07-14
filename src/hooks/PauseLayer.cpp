@@ -1,6 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 
+//#include <core/Bot.hpp>
 #include <nodes/layers/OverlayLayer.hpp>
 
 using namespace geode::prelude;
@@ -11,6 +12,7 @@ class $modify(GBPauseLayer, PauseLayer) {
     }
 
     void customSetup() {
+        // setup PauseLayer
         PauseLayer::customSetup();
 
         // add GatoBot button
@@ -32,14 +34,17 @@ class $modify(GBPauseLayer, PauseLayer) {
             return;
         }
 
+        // TODO: find a better way to add the button lol
+        auto settingsBtn = typeinfo_cast<CCMenuItemSpriteExtra*>(btnMenu->getChildren()->objectAtIndex(btnMenu->getChildrenCount() - 1));
+        auto settingsBtnPos = settingsBtn->getPosition();
+
         btnMenu->addChild(btn);
 
         // set position
-        auto dir = CCDirector::sharedDirector();
-        auto winSize = dir->getWinSize();
+        //auto dir = CCDirector::sharedDirector();
+        //auto winSize = dir->getWinSize();
+        //auto pos = btnMenu->convertToNodeSpace(CCPoint { winSize.width - 75, winSize.height - 35 });
 
-        auto pos = btnMenu->convertToNodeSpace(CCPoint { winSize.width - 75, winSize.height - 35 });
-
-        btn->setPosition(pos);
+        btn->setPosition(settingsBtnPos + CCPoint { -40.f, 0.f });
     }
 };

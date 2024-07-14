@@ -98,11 +98,6 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
     return result;
 }
 
-void GatoBot::updateHooks() {
-    this->toggleHook("CCScheduler::update", m_status != BotStatus::Idle);
-    this->toggleHook("glViewport", m_status == BotStatus::Rendering);
-}
-
 int GatoBot::getGameFPS() {
     auto dir = CCDirector::sharedDirector();
     float interval = dir->getAnimationInterval();
@@ -181,17 +176,49 @@ void GatoBot::applyRenderParams(const RenderParams& params) {
 void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
     for(auto& h : Mod::get()->getHooks()) {
         if(h->getDisplayName() == hookName) {
-            if(toggle) (void)h->enable();
-            else (void)h->disable();
+            Result<> res;
+
+            if(toggle) res = h->enable();
+            else res = h->disable();
+            
+            if(res.isErr()) {
+                log::error("Error: {}", res.unwrapErr());
+            }
+
+            log::debug("Hook {}: {}", hookName, toggle);       
             break;
         }
     }
-
-    log::debug("Hook {}: {}", hookName, toggle);
 }
 
-void GatoBot::updatePlayLayer(float& dt) {
-    // game paused
+void GatoBot::updateHooks() {
+    this->toggleHook("cocos2d::CCScheduler::update", m_status != BotStatus::Idle);
+    this->toggleHook("glViewport", m_status == BotStatus::Rendering);
+}
+
+void GatoBot::applyWinSize() {
+    //if(m_status != BotStatus::Rendering) return;
+
+    CCSize& size = m_renderParams.m_newDesignRes;
+
+    if(size.width != 0 && size.height != 0) {
+        CCDirector::get()->m_obWinSizeInPoints = size;
+        CCEGLView::get()->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+    }
+}
+
+void GatoBot::restoreWinSize() {
+    //if(m_status != BotStatus::Rendering) return;
+
+    CCSize& size = m_renderParams.m_originalDesignRes;
+
+    if(size.width != 0 && size.height != 0) {
+        CCDirector::get()->m_obWinSizeInPoints = size;
+        CCEGLView::get()->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+    }
+}
+
+void GatoBot::updateBot(float& dt) {
     const bool gamePaused = this->getPlayLayer() != nullptr ? this->getPlayLayer()->m_isPaused : true;
 
     if(m_status != BotStatus::Idle && !gamePaused) {
@@ -297,7 +324,6 @@ void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
 void GatoBot::botFinished(BotStatus oldStatus) {
     GB_LOG("botFinished => m_firstSPF: {}", m_firstSPF);
 
-    //CCDirector::sharedDirector()->setAnimationInterval(m_firstSPF);
     this->setGameSPF(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);
 
@@ -308,6 +334,8 @@ void GatoBot::botFinished(BotStatus oldStatus) {
     if(oldStatus == Rendering) {
         m_encoder->encodingFinished();
         CC_SAFE_DELETE(m_encoder);
+
+        CCEGLView::get()->setDesignResolutionSize(m_renderParams.m_originalDesignRes.width, m_renderParams.m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
     }
 }
 
