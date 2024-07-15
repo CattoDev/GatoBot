@@ -193,28 +193,32 @@ void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
 
 void GatoBot::updateHooks() {
     this->toggleHook("cocos2d::CCScheduler::update", m_status != BotStatus::Idle);
-    this->toggleHook("glViewport", m_status == BotStatus::Rendering);
+    //this->toggleHook("glViewport", m_status == BotStatus::Rendering);
 }
 
 void GatoBot::applyWinSize() {
-    //if(m_status != BotStatus::Rendering) return;
-
     CCSize& size = m_renderParams.m_newDesignRes;
 
     if(size.width != 0 && size.height != 0) {
+        auto view = CCEGLView::get();
+        
         CCDirector::get()->m_obWinSizeInPoints = size;
-        CCEGLView::get()->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+        view->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+        view->m_fScaleX = m_renderParams.m_newScreenScaleX;
+        view->m_fScaleY = m_renderParams.m_newScreenScaleY;
     }
 }
 
 void GatoBot::restoreWinSize() {
-    //if(m_status != BotStatus::Rendering) return;
-
     CCSize& size = m_renderParams.m_originalDesignRes;
 
     if(size.width != 0 && size.height != 0) {
+        auto view = CCEGLView::get();
+
         CCDirector::get()->m_obWinSizeInPoints = size;
-        CCEGLView::get()->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+        view->setDesignResolutionSize(size.width, size.height, ResolutionPolicy::kResolutionExactFit);
+        view->m_fScaleX = m_renderParams.m_originalScreenScaleX;
+        view->m_fScaleY = m_renderParams.m_originalScreenScaleY;
     }
 }
 

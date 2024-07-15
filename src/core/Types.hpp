@@ -53,7 +53,11 @@ struct RenderParams {
 
     // set by the bot
     int m_frameFactor;
-    bool m_updateViewport = true;
     cocos2d::CCSize m_originalDesignRes;
     cocos2d::CCSize m_newDesignRes;
+
+    float m_originalScreenScaleX;
+    float m_originalScreenScaleY;
+    float m_newScreenScaleX;
+    float m_newScreenScaleY;
 };

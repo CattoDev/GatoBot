@@ -491,20 +491,9 @@ void Encoder::captureFrame() {
 }
 
 void Encoder::visit() {
-    // CCRenderTexture in ShaderLayer alters the viewport
-    // to the resolution set when the layer is created
-    // since we are using a custom viewport AFTER the
-    // layer is created, we have to block viewport changes
-    // from ShaderLayer
-    m_renderParams->m_updateViewport = false;
-
-    //log::debug("visit!!");
-
     PlayLayer::get()->visit(); // TEMP
 
     // TODO: rewrite PlayLayer::visit to allow text on top of a rendering scene
-
-    m_renderParams->m_updateViewport = true;
 }
 
 void Encoder::encodingFinished() {

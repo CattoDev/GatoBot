@@ -353,6 +353,12 @@ void SettingsPopup::onStart(CCObject*) {
         m_renderParams.m_originalDesignRes = oldDesignRes;
         m_renderParams.m_newDesignRes = newDesignRes;
 
+        m_renderParams.m_originalScreenScaleX = view->m_fScaleX;
+        m_renderParams.m_originalScreenScaleY = view->m_fScaleY;
+
+        m_renderParams.m_newScreenScaleX = static_cast<float>(m_renderParams.m_width) / newDesignRes.width;
+        m_renderParams.m_newScreenScaleY = static_cast<float>(m_renderParams.m_height) / newDesignRes.height;
+
         bot->applyRenderParams(m_renderParams);
     }
 
