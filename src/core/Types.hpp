@@ -3,6 +3,7 @@
 #include <vector>
 #include <Geode/binding/PlayerButtonCommand.hpp>
 #include <Geode/cocos/cocoa/CCGeometry.h>
+#include <Geode/fmod/fmod_common.h>
 
 enum BotStatus { Idle, Recording, Replaying, Rendering };
 
@@ -66,4 +67,5 @@ struct RenderParams {
 
     float m_originalMusicVolume;
     float m_originalSFXVolume;
+    FMOD_OUTPUTTYPE m_FMODOutputType;
 };

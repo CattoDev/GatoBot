@@ -327,9 +327,9 @@ FrameState GatoBot::createFrameState() {
 
     state.m_frame = m_currentFrame;
 
-    state.m_unk1 = TEMP_MBO(double, pLayer, 0x3248);
-    state.m_unk2 = TEMP_MBO(int, pLayer, 0x329c);
-    state.m_unk3 = TEMP_MBO(float, pLayer, 0x330);
+    //state.m_unk1 = TEMP_MBO(double, pLayer, 0x3248);
+    //state.m_unk2 = TEMP_MBO(int, pLayer, 0x329c);
+    //state.m_unk3 = TEMP_MBO(float, pLayer, 0x330);
     
     return state;
 }
@@ -344,9 +344,9 @@ void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
     auto pLayer = this->getPlayLayer();
 
     m_currentFrame = state.m_frame;
-    TEMP_MBO(double, pLayer, 0x3248) = state.m_unk1;
-    TEMP_MBO(int, pLayer, 0x329c) = state.m_unk2;
-    TEMP_MBO(float, pLayer, 0x330) = state.m_unk3;
+    //TEMP_MBO(double, pLayer, 0x3248) = state.m_unk1;
+    //TEMP_MBO(int, pLayer, 0x329c) = state.m_unk2;
+    //TEMP_MBO(float, pLayer, 0x330) = state.m_unk3;
 
     // clear frames after current framestate
     if(clearFrames) {
@@ -365,11 +365,18 @@ void GatoBot::botFinished(BotStatus oldStatus) {
     }
 
     if(oldStatus == Rendering) {
+        // free encoder
         m_encoder->encodingFinished();
         CC_SAFE_DELETE(m_encoder);
 
-        CCEGLView::get()->setDesignResolutionSize(m_renderParams.m_originalDesignRes.width, m_renderParams.m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
+        // reset audio settings
         this->resetVolume();
+
+        auto fmod = FMODAudioEngine::sharedEngine();
+        fmod->m_system->setOutput(m_renderParams.m_FMODOutputType);
+
+        // reset aspect ratio
+        CCEGLView::get()->setDesignResolutionSize(m_renderParams.m_originalDesignRes.width, m_renderParams.m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
     }
 }
 

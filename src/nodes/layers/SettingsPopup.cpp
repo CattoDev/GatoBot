@@ -385,6 +385,7 @@ void SettingsPopup::onStart(CCObject*) {
 
             // reload PlayLayer
             bot->getPlayLayer()->m_loadingLayer = GJGameLoadingLayer::transitionToLoadingLayer(bot->getPlayLayer()->m_level, false);
+            bot->getPlayLayer()->m_loadingLayer->retain();
         }
         // Recording / Replaying settings: just close the menu and begin
         else {

@@ -24,8 +24,8 @@ private:
     AVCodecContext* m_videoCodecContext = nullptr;
     AVCodecContext* m_audioCodecContext = nullptr;
     AVPacket* m_packet = nullptr;
-    AVFrame* m_RGBframe = nullptr;
-    AVFrame* m_YUVframe = nullptr;
+    AVFrame* m_RGBFrame = nullptr;
+    AVFrame* m_YUVFrame = nullptr;
     AVFrame* m_audioFrameBuffer = nullptr;
     AVFormatContext* m_formatContext = nullptr;
     AVStream* m_videoStream = nullptr;
@@ -54,7 +54,7 @@ private:
     void setupEncoder(const RenderParams& params);
     void setupFMODCapture();
     void setupAudioEncoder(const RenderParams& params);
-    void sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video);
+    void sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx);
 
 public:
     Encoder(RenderParams* params);

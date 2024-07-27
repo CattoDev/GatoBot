@@ -9,6 +9,10 @@ Result<> GatoBot::setupRenderer() {
     // prepare audio
     this->copyVolume();
 
+    auto fmod = FMODAudioEngine::sharedEngine();
+    fmod->m_system->getOutput(&m_renderParams.m_FMODOutputType);
+    fmod->m_system->setOutput(FMOD_OUTPUTTYPE_NOSOUND);
+
     // setup Encoder
     m_encoder = new Encoder(&m_renderParams);
 

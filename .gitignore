@@ -37,6 +37,7 @@
 
 # Ignore build folders
 **/build
+**/build-android64
 
 # Workspace files are user-specific
 *.sublime-workspace

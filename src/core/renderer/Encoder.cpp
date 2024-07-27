@@ -65,8 +65,8 @@ Encoder::Encoder(RenderParams* params) {
 Encoder::~Encoder() {
     #define SAFE_FREE(func, var) if(var) geode::log::debug("Freeing {}", GEODE_STR(var)); func(&var);
 
-    SAFE_FREE(av_frame_free, m_RGBframe);
-    SAFE_FREE(av_frame_free, m_YUVframe);
+    SAFE_FREE(av_frame_free, m_RGBFrame);
+    SAFE_FREE(av_frame_free, m_YUVFrame);
     SAFE_FREE(av_frame_free, m_audioFrameBuffer);
 
     SAFE_FREE(avcodec_free_context, m_videoCodecContext);
@@ -203,8 +203,8 @@ void Encoder::setupEncoder(const RenderParams& params) {
     }
 
     // allocate frames
-    m_RGBframe = this->allocateAVFrame(2, params.m_width, params.m_height); // AV_PIX_FMT_RGB24
-    m_YUVframe = this->allocateAVFrame(0, params.m_width, params.m_height); // AV_PIX_FMT_YUV420P
+    m_RGBFrame = this->allocateAVFrame(2, params.m_width, params.m_height); // AV_PIX_FMT_RGB24
+    m_YUVFrame = this->allocateAVFrame(0, params.m_width, params.m_height); // AV_PIX_FMT_YUV420P
     
     // allocate packet
     m_packet = av_packet_alloc();
@@ -348,10 +348,10 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
     m_audioBuffer.resize(m_audioBufferSize);
 }
 
-void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video) {
+void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx) {
     // also temp: only for video
     // TODO: change
-    if(frame && video) {
+    /*if(frame && video) {
         geode::log::debug("Encoding frame: {}", frame->pts);
 
         // convert RGB24 to YUV420P
@@ -361,7 +361,7 @@ void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecC
             m_YUVframe->pts = frame->pts;
             frame = m_YUVframe;
         }
-    }
+    }*/
 
     int errCode = avcodec_send_frame(codecCtx, frame);
     if(errCode != 0) {
@@ -399,21 +399,25 @@ void Encoder::processFrameData() {
     // TODO: rewrite the conversion part
 
     // set frame data
-    for (unsigned int y = 0; y < m_RGBframe->height; y++) {
-		for (unsigned int x = 0; x < m_RGBframe->width; x++) {
-            const int newY = m_RGBframe->height - y - 1;
+    for (unsigned int y = 0; y < m_RGBFrame->height; y++) {
+		for (unsigned int x = 0; x < m_RGBFrame->width; x++) {
+            const int newY = m_RGBFrame->height - y - 1;
 
             // copy and flip image vertically
-            m_RGBframe->data[0][y * m_RGBframe->linesize[0] + 3 * x + 0] = m_frameData[newY * m_RGBframe->linesize[0] + 3 * x + 0];
-            m_RGBframe->data[0][y * m_RGBframe->linesize[0] + 3 * x + 1] = m_frameData[newY * m_RGBframe->linesize[0] + 3 * x + 1];
-            m_RGBframe->data[0][y * m_RGBframe->linesize[0] + 3 * x + 2] = m_frameData[newY * m_RGBframe->linesize[0] + 3 * x + 2];
+            m_RGBFrame->data[0][y * m_RGBFrame->linesize[0] + 3 * x + 0] = m_frameData[newY * m_RGBFrame->linesize[0] + 3 * x + 0];
+            m_RGBFrame->data[0][y * m_RGBFrame->linesize[0] + 3 * x + 1] = m_frameData[newY * m_RGBFrame->linesize[0] + 3 * x + 1];
+            m_RGBFrame->data[0][y * m_RGBFrame->linesize[0] + 3 * x + 2] = m_frameData[newY * m_RGBFrame->linesize[0] + 3 * x + 2];
 		}
 	}
 
-    m_RGBframe->pts = m_currentFrame++;
+    // convert RGB24 to YUV420P
+    sws_scale(m_swsContext, m_RGBFrame->data, m_RGBFrame->linesize, 0, m_RGBFrame->height, m_YUVFrame->data, m_YUVFrame->linesize);
+
+    m_RGBFrame->pts = m_currentFrame++;
+    m_YUVFrame->pts = m_RGBFrame->pts;
 
     // encode RGB frame
-    this->sendFrame(m_RGBframe, m_videoStream, m_videoCodecContext, true);
+    this->sendFrame(m_YUVFrame, m_videoStream, m_videoCodecContext);
 
     // set video time
     m_videoTime = (double)m_videoIdx++ * ((double)m_videoCodecContext->framerate.den / (double)m_videoCodecContext->framerate.num);
@@ -453,7 +457,7 @@ void Encoder::processAudio() {
                     log::error("yummers");
                 }
 
-                this->sendFrame(m_audioFrameBuffer, m_audioStream, m_audioCodecContext, false);
+                this->sendFrame(m_audioFrameBuffer, m_audioStream, m_audioCodecContext); 
 
                 m_audioFrameBuffer->pts += m_audioCodecContext->frame_size;
 
@@ -466,8 +470,6 @@ void Encoder::processAudio() {
 
 void Encoder::captureFrame() {
     auto dir = CCDirector::get();
-
-    log::debug("Capture frame");
     
     // set custom viewport
     glViewport(0, 0, m_renderParams->m_width, m_renderParams->m_height);
@@ -503,7 +505,7 @@ void Encoder::encodingFinished() {
     log::debug("m_audioIdx: {} & m_audioTime: {}", m_audioIdx, m_audioTime);
 
     // flush video encoder
-    this->sendFrame(NULL, m_videoStream, m_videoCodecContext, true);
+    this->sendFrame(NULL, m_videoStream, m_videoCodecContext);
 
     // write file trailer
     av_write_trailer(m_formatContext);

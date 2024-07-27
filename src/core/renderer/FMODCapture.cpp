@@ -4,6 +4,11 @@
     TODO: error checking
 */
 
+// fuck is android doing lmaooo
+#ifdef GEODE_ANDROID
+    #define strncpy_s strncpy
+#endif
+
 #include "FMODCapture.hpp"
 
 using namespace geode::prelude;
@@ -24,11 +29,7 @@ FMOD_RESULT F_CALLBACK CaptureDSPCallback(FMOD_DSP_STATE *dspState, float *inBuf
     // copy data
     const int channels = *outChannels;
     const int dataSize = length * channels * sizeof(float);
-    //memcpy(outBuffer, inBuffer, dataSize); // temp (just so I can hear it)
 
-    memset(outBuffer, 0, dataSize);
-
-    // copy actual data
     memcpy(cap->m_capturedData.data(), inBuffer, dataSize);
     
     // unlock main thread
