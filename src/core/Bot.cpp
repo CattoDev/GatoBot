@@ -222,6 +222,35 @@ void GatoBot::restoreWinSize() {
     }
 }
 
+void GatoBot::copyVolume() {
+    auto fmod = FMODAudioEngine::sharedEngine();
+
+    m_renderParams.m_originalMusicVolume = fmod->m_musicVolume;
+    m_renderParams.m_originalSFXVolume = fmod->m_sfxVolume;
+}
+
+void GatoBot::setVolume(float volume) {
+    auto fmod = FMODAudioEngine::sharedEngine();
+
+    fmod->m_backgroundMusicChannel->setVolume(volume);
+    fmod->m_currentSoundChannel->setVolume(volume);
+    fmod->m_musicVolume = volume;
+
+    fmod->m_globalChannel->setVolume(volume);
+    fmod->m_sfxVolume = volume;
+}
+
+void GatoBot::resetVolume() {
+    auto fmod = FMODAudioEngine::sharedEngine();
+
+    fmod->m_backgroundMusicChannel->setVolume(m_renderParams.m_originalMusicVolume);
+    fmod->m_currentSoundChannel->setVolume(m_renderParams.m_originalMusicVolume);
+    fmod->m_musicVolume = m_renderParams.m_originalMusicVolume;
+
+    fmod->m_globalChannel->setVolume(m_renderParams.m_originalSFXVolume);
+    fmod->m_sfxVolume = m_renderParams.m_originalSFXVolume;
+}
+
 void GatoBot::updateBot(float& dt) {
     const bool gamePaused = this->getPlayLayer() != nullptr ? this->getPlayLayer()->m_isPaused : true;
 
@@ -282,9 +311,9 @@ void GatoBot::onLevelReset() {
         //TEMP_MBO(int, pLayer, 0x2b04) = 0;
         //TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
 
-        TEMP_MBO(double, pLayer, 0x3248) = 0;
-        TEMP_MBO(int, pLayer, 0x329c) = 0;
-        TEMP_MBO(float, pLayer, 0x330) = 1.f;
+        //TEMP_MBO(double, pLayer, 0x3248) = 0;
+        //TEMP_MBO(int, pLayer, 0x329c) = 0;
+        //TEMP_MBO(float, pLayer, 0x330) = 1.f;
     }
     else {
 
@@ -326,7 +355,7 @@ void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {
-    GB_LOG("botFinished => m_firstSPF: {}", m_firstSPF);
+    GB_LOG("botFinished");
 
     this->setGameSPF(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);
@@ -340,6 +369,7 @@ void GatoBot::botFinished(BotStatus oldStatus) {
         CC_SAFE_DELETE(m_encoder);
 
         CCEGLView::get()->setDesignResolutionSize(m_renderParams.m_originalDesignRes.width, m_renderParams.m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
+        this->resetVolume();
     }
 }
 

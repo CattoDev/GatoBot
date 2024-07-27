@@ -50,6 +50,9 @@ struct RenderParams {
     int m_fps = 0;
     int m_videoBitrate;
     int m_audioBitrate;
+    float m_audioVolume = 1.f;
+
+    bool m_includeAudio;
 
     // set by the bot
     int m_frameFactor;
@@ -60,4 +63,7 @@ struct RenderParams {
     float m_originalScreenScaleY;
     float m_newScreenScaleX;
     float m_newScreenScaleY;
+
+    float m_originalMusicVolume;
+    float m_originalSFXVolume;
 };

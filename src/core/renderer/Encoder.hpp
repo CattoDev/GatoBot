@@ -5,7 +5,7 @@
 #include <Geode/cocos/cocoa/CCGeometry.h>
 #include <core/Types.hpp>
 
-#include "AudioNode.hpp"
+#include "FMODCapture.hpp"
 
 class AVCodec;
 class AVCodecContext;
@@ -36,12 +36,14 @@ private:
     double m_audioTime = 0;
     int m_videoIdx = 1;
     int m_audioIdx = 1;
+    int m_audioBufferSize;
     
     geode::Result<> m_result;
     std::vector<GLubyte> m_frameData;
     cocos2d::CCTexture2D* m_renderTexture = nullptr;
     int m_currentFrame = 0;
-    std::vector<AudioNode*> m_audioNodes;
+    FMODCapture* m_audioCapture = nullptr;
+    std::vector<float> m_audioBuffer;
 
     GLint m_oldFBO;
     GLuint m_FBO;
@@ -50,8 +52,8 @@ private:
 private:
     AVFrame* allocateAVFrame(int pixFmt, int width, int height);
     void setupEncoder(const RenderParams& params);
+    void setupFMODCapture();
     void setupAudioEncoder(const RenderParams& params);
-    void setupAudioDecoder(const RenderParams& params);
     void sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video);
 
 public:

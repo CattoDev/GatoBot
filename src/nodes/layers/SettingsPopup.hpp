@@ -31,7 +31,7 @@ public:
     geode::prelude::CCSize createMenuForStatus(BotStatus);
     CCMenuItemSpriteExtra* createButton(const char* caption, const char* texture, float scale, geode::prelude::SEL_MenuHandler cb);
     CCTextInputNode* createInput(const char* caption, geode::prelude::CCSize size, std::string filter = "");
-    void createCheckbox(const char* caption, const char* key, bool toggled, std::string infoText = "");
+    void createCheckbox(const char* caption, bool toggled, std::string infoText = "");
 
     int getFPS();
     const char* statusToStr(BotStatus);

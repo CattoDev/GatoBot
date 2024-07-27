@@ -8,8 +8,6 @@
 
 #include <Geode/Geode.hpp>
 
-using namespace geode::prelude;
-
 extern "C" {
     #include <libavcodec/avcodec.h>
     #include <libavutil/opt.h>
@@ -17,6 +15,8 @@ extern "C" {
     #include <libavformat/avformat.h>
     #include <libswscale/swscale.h>
 }
+
+using namespace geode::prelude;
 
 Encoder::Encoder(RenderParams* params) {
     geode::log::debug("Encoder::Encoder()");
@@ -76,11 +76,7 @@ Encoder::~Encoder() {
     if (m_swsContext) sws_freeContext(m_swsContext);
 
     CC_SAFE_RELEASE(m_renderTexture);
-
-    // release audio nodes
-    for(auto& node : m_audioNodes) {
-        if(node) delete node;
-    }
+    CC_SAFE_DELETE(m_audioCapture);
 
     geode::log::debug("Encoder freed");
 }
@@ -187,7 +183,7 @@ void Encoder::setupEncoder(const RenderParams& params) {
     }
 
     // setup audio encoder
-    //this->setupAudioEncoder(params);
+    this->setupAudioEncoder(params);
 
     if(m_result.isErr()) return;
 
@@ -216,8 +212,13 @@ void Encoder::setupEncoder(const RenderParams& params) {
     // get sws context
     m_swsContext = sws_getContext(params.m_width, params.m_height, AV_PIX_FMT_RGB24, params.m_width, params.m_height, AV_PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
 
-    // setup audio decoder
-    //this->setupAudioDecoder(params);
+    // setup FMOD capture
+    this->setupFMODCapture();
+
+    if(m_result.isErr()) {
+        if(m_audioCapture) m_audioCapture->disable();
+        return;
+    }
 
     // done
     geode::log::debug("Encoder configured!");
@@ -229,8 +230,7 @@ static int select_channel_layout(const AVCodec *codec, AVChannelLayout *dst)
     int best_nb_channels = 0;
  
     if (!codec->ch_layouts) {
-        //auto layout = AVChannelLayout AV_CHANNEL_LAYOUT_STEREO;
-        auto layout = AVChannelLayout AV_CHANNEL_LAYOUT_MONO;
+        auto layout = AVChannelLayout AV_CHANNEL_LAYOUT_STEREO;
 
         return av_channel_layout_copy(dst, &layout);
     }
@@ -265,7 +265,21 @@ static int select_sample_rate(const AVCodec *codec)
     return best_samplerate;
 }
 
+void Encoder::setupFMODCapture() {
+    if(!m_renderParams->m_includeAudio) return;
+
+    m_audioCapture = FMODCapture::get();
+    
+    if(!m_audioCapture->setup()) {
+        // error!!
+        m_result = geode::Err("Failed to set up FMOD audio capture!");
+        return;
+    }
+}
+
 void Encoder::setupAudioEncoder(const RenderParams& params) {
+    if(!m_renderParams->m_includeAudio) return;
+
     if(!(m_audioCodec = avcodec_find_encoder(AV_CODEC_ID_AAC))) {
         m_result = geode::Err("Unable to open audio codec!");
         return;
@@ -276,8 +290,7 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
         return;
     }
 
-    /* put sample parameters */
-    m_audioCodecContext->bit_rate = 64000;
+    m_audioCodecContext->bit_rate = 192000; // temp
     m_audioCodecContext->strict_std_compliance = -2;
     m_audioCodecContext->codec_type = AVMEDIA_TYPE_AUDIO;
  
@@ -329,21 +342,10 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
     
     av_frame_get_buffer(m_audioFrameBuffer, 0);
 
-    m_audioFrameBuffer->nb_samples = 0;
     m_audioFrameBuffer->pts = 0;
-}
 
-void Encoder::setupAudioDecoder(const RenderParams& params) {
-    // create audio nodes
-
-    // TEMP: just the main song
-    auto node = new AudioNode(params.m_songPath);
-
-    if(node->getLastResult().isErr()) {
-        geode::log::error("{}", node->getLastResult().unwrapErr());
-    }
-
-    m_audioNodes.push_back(node);
+    m_audioBufferSize = av_samples_get_buffer_size(NULL, m_audioCodecContext->ch_layout.nb_channels, m_audioCodecContext->frame_size, m_audioCodecContext->sample_fmt, 0) / sizeof(float);
+    m_audioBuffer.resize(m_audioBufferSize);
 }
 
 void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx, bool video) {
@@ -418,40 +420,42 @@ void Encoder::processFrameData() {
 }
 
 void Encoder::processAudio() {
+    if(!m_renderParams->m_includeAudio) return;
+
     // huge thanks to https://stackoverflow.com/a/39693587
-    AVFrame* frame = nullptr;
-    int loadedSamples = 0;
+    while(m_audioTime < m_videoTime) {
+        int loadedSize = 0;
 
-    // only works for 1 node atm
-    while((m_audioTime < m_videoTime) && (frame = m_audioNodes[0]->getFrame())) {
-        int loadedSamples = 0;
+        while(loadedSize < m_audioBufferSize) {
+            auto data = m_audioCapture->capture();
 
-        while(loadedSamples < frame->nb_samples) {
             // add audio data to buffer
-            const int n_channels = frame->ch_layout.nb_channels;
-            int new_samples = std::min(frame->nb_samples - loadedSamples, m_audioCodecContext->frame_size - m_audioFrameBuffer->nb_samples);
-            int curSamples = m_audioFrameBuffer->nb_samples;
+            const int channels = m_audioCodecContext->ch_layout.nb_channels;
+            const int capturedDataSize = data.size();
 
-            int16_t *d_in = (int16_t *)frame->data[0];
-            d_in += n_channels * loadedSamples;
-            int16_t *d_out = (int16_t *)m_audioFrameBuffer->data[0];
-            d_out += n_channels * curSamples;
-
-            for (int i = 0; i < new_samples; i++) {
-                for (int j = 0; j < n_channels; j++) {
-                    *d_out++ = *d_in++;
+            // copy data in planar order (https://stackoverflow.com/a/18889127)
+            const int fullLength = m_audioBufferSize / channels;
+            const int length = capturedDataSize / channels;
+            for(int i = 0; i < channels; i++) {
+                for(int j = 0; j < length; j++) {
+                    m_audioBuffer[loadedSize / channels + i * fullLength + j] = data[j * channels + i];
                 }
             }
 
-            m_audioFrameBuffer->nb_samples += new_samples;
-            loadedSamples += new_samples;
+            loadedSize += capturedDataSize;
+
+            // allow next samples to be copied
+            m_audioCapture->processed();
 
             // encode buffer
-            if(m_audioFrameBuffer->nb_samples == m_audioCodecContext->frame_size) {
+            if(loadedSize == m_audioBufferSize) {
+                if(avcodec_fill_audio_frame(m_audioFrameBuffer, channels, m_audioCodecContext->sample_fmt, (const uint8_t*)m_audioBuffer.data(), m_audioBufferSize * channels * sizeof(float), 1) < 0) {
+                    log::error("yummers");
+                }
+
                 this->sendFrame(m_audioFrameBuffer, m_audioStream, m_audioCodecContext, false);
 
                 m_audioFrameBuffer->pts += m_audioCodecContext->frame_size;
-                m_audioFrameBuffer->nb_samples = 0;
 
                 // set audio time
                 m_audioTime = (double)m_audioIdx++ * ((double)m_audioCodecContext->frame_size / (double)m_audioCodecContext->sample_rate);
@@ -462,6 +466,8 @@ void Encoder::processAudio() {
 
 void Encoder::captureFrame() {
     auto dir = CCDirector::get();
+
+    log::debug("Capture frame");
     
     // set custom viewport
     glViewport(0, 0, m_renderParams->m_width, m_renderParams->m_height);
@@ -479,15 +485,11 @@ void Encoder::captureFrame() {
     // reset settings
     glBindFramebuffer(GL_FRAMEBUFFER, m_oldFBO);
     
-    //view->setDesignResolutionSize(m_renderParams->m_originalDesignRes.width, m_renderParams->m_originalDesignRes.height, ResolutionPolicy::kResolutionExactFit);
-    //dir->setProjection(dir->getProjection());
-    //dir->setViewport();
-    
     // process video frame
     this->processFrameData();
 
     // process audio frame
-    //this->processAudio();
+    this->processAudio();
 }
 
 void Encoder::visit() {
@@ -505,6 +507,9 @@ void Encoder::encodingFinished() {
 
     // write file trailer
     av_write_trailer(m_formatContext);
+
+    // stop capturing FMOD
+    if(m_audioCapture) m_audioCapture->disable();
 
     log::debug("Encoder::encodingFinished");
 }

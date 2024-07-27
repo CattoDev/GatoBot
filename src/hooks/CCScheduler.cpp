@@ -9,13 +9,11 @@ class $modify(CCScheduler) {
     void update(float dt) {
         auto bot = GatoBot::get();
 
-        //log::debug("CCScheduler::update");
-
         bot->applyWinSize();
 
         bot->updateBot(dt);
         CCScheduler::update(dt);
-        
+
         bot->restoreWinSize();
     }
 };

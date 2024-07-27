@@ -6,6 +6,10 @@ Result<> GatoBot::setupRenderer() {
     // TODO: error checking
     m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / m_renderParams.m_fps;
 
+    // prepare audio
+    this->copyVolume();
+
+    // setup Encoder
     m_encoder = new Encoder(&m_renderParams);
 
     auto result = m_encoder->getLastResult();
@@ -22,6 +26,9 @@ Result<> GatoBot::setupRenderer() {
 }
 
 void GatoBot::updateRendering() {
+    // failsafe
+    this->setVolume(m_renderParams.m_audioVolume);
+
     // update replay
     this->updateReplaying();
 

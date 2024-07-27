@@ -87,7 +87,7 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
 
             m_buttonMenu->addChild(m_checkboxesSection);
 
-            this->createCheckbox("Include song", "include-song", true, "Include the level song.");
+            this->createCheckbox("Include audio", true, "Include the level song.");
         }
 
         // settings menu buttons
@@ -190,13 +190,14 @@ CCTextInputNode* SettingsPopup::createInput(const char* caption, CCSize size, st
     return input;
 }
 
-void SettingsPopup::createCheckbox(const char* caption, const char* key, bool toggled, std::string infoText) {
+void SettingsPopup::createCheckbox(const char* caption, bool toggled, std::string infoText) {
     auto secSize = m_checkboxesSection->getContentSize();
     CCPoint topLeft = { -secSize.width / 2 + 15.f, secSize.height / 2 - 35.f };
     
     // create the checkbox
     auto toggle = CCMenuItemToggler::createWithStandardSprites(this, menu_selector(SettingsPopup::onToggle), .6f);
     toggle->setPosition(topLeft + CCPoint { 0.f, -25.f * static_cast<float>(m_toggles.size()) });
+    toggle->toggle(toggled);
     
     m_checkboxesSection->addChild(toggle);
     m_toggles.push_back(toggle);
@@ -286,7 +287,7 @@ void SettingsPopup::onMenuType(CCObject* sender) {
 }
 
 void SettingsPopup::onToggle(CCObject* sender) {
-    const int tag = typeinfo_cast<HighlightedButton*>(sender)->getTag();
+    const int tag = typeinfo_cast<CCMenuItemToggler*>(sender)->getTag();
 
 
 }
@@ -338,6 +339,17 @@ void SettingsPopup::onStart(CCObject*) {
                 }
             }
         }
+
+        // apply toggles
+        m_renderParams.m_includeAudio = m_toggles.at(0)->isToggled();
+
+        // get default song path
+        /*if(m_renderParams.m_includeAudio) {
+            auto fileUtils = CCFileUtils::sharedFileUtils();
+
+            m_renderParams.m_songPath = fileUtils->fullPathForFilename(bot->getPlayLayer()->m_level->getAudioFileName().c_str(), true);
+            //m_renderParams.m_songPath = bot->getPlayLayer()->m_level->getAudioFileName();
+        }*/
     }
 
     if(!settingsApplied) return;
@@ -345,8 +357,8 @@ void SettingsPopup::onStart(CCObject*) {
     auto dir = CCDirector::get();
     auto view = CCEGLView::get();
 
-    // Rendering settings: change aspect ratio if needed
     if(m_status == BotStatus::Rendering) {
+        // Rendering settings: change aspect ratio if needed
         auto oldDesignRes = view->getDesignResolutionSize();
         auto newDesignRes = Encoder::getDesignResolution(m_renderParams.m_width, m_renderParams.m_height);
 

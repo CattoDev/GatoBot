@@ -46,6 +46,9 @@ public:
     void updateHooks();
     void applyWinSize();
     void restoreWinSize();
+    void copyVolume();
+    void setVolume(float volume);
+    void resetVolume();
 
     void updateBot(float& dt);
     void updateCommon(float& dt);
