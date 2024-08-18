@@ -3,8 +3,18 @@
 using namespace geode::prelude;
 
 Result<> GatoBot::setupRenderer() {
-    // TODO: error checking
-    //m_renderParams.m_frameFactor = m_loadedMacro.getFPS() / m_renderParams.m_fps;
+    Result<> result;
+
+    // video FPS can NOT be higher than TPS
+    if(m_renderParams.m_fps > m_loadedMacro.getTPS()) {
+        result = geode::Err("Video FPS must be below or equal to the macro TPS!");
+
+        return result;
+    }
+
+    m_renderParams.m_timeSinceFrameRender = 1.f; // capture 1st frame
+    m_renderParams.m_spf = 1.f / static_cast<float>(m_renderParams.m_fps);
+    m_renderParams.m_spt = 1.f / static_cast<float>(m_loadedMacro.getTPS());
 
     // prepare audio
     this->copyVolume();
@@ -16,7 +26,7 @@ Result<> GatoBot::setupRenderer() {
     // setup Encoder
     m_encoder = new Encoder(&m_renderParams);
 
-    auto result = m_encoder->getLastResult();
+    result = m_encoder->getLastResult();
 
     // failed to create Encoder
     if(result.isErr()) {
@@ -41,9 +51,17 @@ void GatoBot::updateRendering() {
     // fuck you lasagnatester
 
     // render frame
-    //if(this->canPerform() && m_currentFrame % m_renderParams.m_frameFactor == 0) {
-    //    m_encoder->captureFrame();
-    //}
+    if(this->canPerform()) {
+        const float spf = m_renderParams.m_spf;
+
+        if(m_renderParams.m_timeSinceFrameRender >= spf) {
+            while(m_renderParams.m_timeSinceFrameRender >= spf) m_renderParams.m_timeSinceFrameRender -= spf;
+            
+            m_encoder->captureFrame();
+        }
+
+        m_renderParams.m_timeSinceFrameRender += m_renderParams.m_spt;
+    }
 
     // check for errors
     if(m_encoder->getLastResult().isErr()) {

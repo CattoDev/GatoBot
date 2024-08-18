@@ -55,6 +55,10 @@ int Macro::getStepCount() {
     return static_cast<int>(m_allSteps.size());
 }
 
+int Macro::getTPS() {
+    return m_tps;
+}
+
 bool Macro::isEmpty() {
     return m_allSteps.size() == 0;
 }
@@ -163,6 +167,7 @@ void Macro::loadFile(std::filesystem::path& filePath) {
 
     // load macro
     ReplayFormat replay = ReplayFormat::importData(macroData);
+    m_tps = static_cast<int>(replay.framerate);
 
     // create step states from commands
     int stepCount = static_cast<int>(replay.duration * replay.framerate);

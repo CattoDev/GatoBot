@@ -39,6 +39,7 @@ public:
     Encoder* getEncoder();
     void applyRenderParams(const RenderParams& params);
     geode::Result<> setupRenderer();
+    void queueFrameRender();
     void toggleHook(const std::string& hookName, bool toggle);
     void updateHooks();
     void applyWinSize();
@@ -47,6 +48,7 @@ public:
     void setVolume(float volume);
     void resetVolume();
 
+    void updateDelta(float& dt);
     void updateBot();
     void updateCommon();
     void updateRecording();

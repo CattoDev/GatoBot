@@ -33,6 +33,7 @@ class $modify(PlayLayer) {
 
         if(!this->canPauseGame()) return;
 
+        // TODO: find a better fix :sob:
         // queue release commands
         auto bot = GatoBot::get();
 
@@ -80,5 +81,10 @@ class $modify(PlayLayer) {
     void startGame() {
         PlayLayer::startGame();
         GatoBot::get()->levelStarted();
+    }
+
+    void onQuit() {
+        (void)GatoBot::get()->changeStatus(BotStatus::Idle);
+        PlayLayer::onQuit();
     }
 };

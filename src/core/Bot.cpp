@@ -60,7 +60,6 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
         } break;
 
         case BotStatus::Replaying: {
-            //log::debug("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
             log::debug("Replaying {} steps", m_loadedMacro.getStepCount());
         } break;
 
@@ -183,7 +182,7 @@ void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
 }
 
 void GatoBot::updateHooks() {
-    this->toggleHook("cocos2d::CCScheduler::update", m_status == BotStatus::Rendering);
+    this->toggleHook("cocos2d::CCScheduler::update", m_status != BotStatus::Idle);
 }
 
 void GatoBot::applyWinSize() {
@@ -241,7 +240,23 @@ void GatoBot::resetVolume() {
     fmod->m_sfxVolume = m_renderParams.m_originalSFXVolume;
 }
 
-//void GatoBot::updateBot(float& dt) {
+void GatoBot::updateDelta(float& dt) {
+    if(m_status == BotStatus::Idle) return;
+
+    switch(m_status) {
+        case BotStatus::Recording:
+        case BotStatus::Replaying: {
+            dt = CCDirector::get()->getAnimationInterval() * CCScheduler::get()->getTimeScale() * m_mainSpeed;
+        } break;
+
+        case BotStatus::Rendering: {
+            dt = m_renderParams.m_spt;
+        } break;
+
+        default: break;
+    }
+}
+
 void GatoBot::updateBot() {
     if(m_status == BotStatus::Idle) return;
 

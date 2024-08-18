@@ -44,7 +44,9 @@ struct RenderParams {
     bool m_includeAudio;
 
     // set by the bot
-    int m_frameFactor;
+    float m_timeSinceFrameRender;
+    float m_spf; // seconds per frame
+    float m_spt; // seconds per tick
     cocos2d::CCSize m_originalDesignRes;
     cocos2d::CCSize m_newDesignRes;
 

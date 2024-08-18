@@ -15,11 +15,6 @@ void GatoBot::updateReplaying() {
 
     // just debugging stuff
     {
-        int shouldBeStep = static_cast<int>(pLayer->m_gameState.m_levelTime * 240.f);
-        if(m_currentStep != shouldBeStep) {
-            geode::log::error("STEP MISMATCH {} != {}", m_currentStep, shouldBeStep);
-        }
-
         if((step.m_player1.m_posX != 0 && step.m_player1.m_posY != 0) && (pLayer->m_player1->m_position.x != step.m_player1.m_posX || pLayer->m_player1->m_position.y != step.m_player1.m_posY)) {
             log::error("PLAYER POSITION INCONSISTENT ({}, {}) != ({}, {})", pLayer->m_player1->m_position.x, pLayer->m_player1->m_position.y, step.m_player1.m_posX, step.m_player1.m_posY);
         }

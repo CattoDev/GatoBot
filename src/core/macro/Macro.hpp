@@ -34,6 +34,7 @@ public:
     void clearStepsFrom(int stepIdx);
     int getStepCount();
 
+    int getTPS();
     bool isEmpty();
 
     void recordingFinished();

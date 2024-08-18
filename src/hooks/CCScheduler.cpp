@@ -11,7 +11,7 @@ class $modify(CCScheduler) {
 
         bot->applyWinSize();
 
-        //bot->updateBot(dt);
+        bot->updateDelta(dt);
         CCScheduler::update(dt);
 
         bot->restoreWinSize();
