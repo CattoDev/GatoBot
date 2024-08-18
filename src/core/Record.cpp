@@ -6,7 +6,7 @@ void GatoBot::updateRecording() {
     if(!this->canPerform())
         return;
 
-    geode::log::debug("Saving step {}", m_currentStep);
+    //geode::log::debug("Saving step {}", m_currentStep);
 
     auto pLayer = this->getPlayLayer();
 

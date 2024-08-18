@@ -61,6 +61,7 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
 
         case BotStatus::Replaying: {
             //log::debug("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
+            log::debug("Replaying {} steps", m_loadedMacro.getStepCount());
         } break;
 
         case BotStatus::Rendering: {
@@ -114,7 +115,6 @@ bool GatoBot::canPerform() {
         return false;
 
     return 
-        //!(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())
         !(this->isPlayback() && m_currentStep >= m_loadedMacro.getStepCount())
        && pLayer->m_started
     ;
@@ -130,8 +130,6 @@ bool GatoBot::isPlayback() {
 
 void GatoBot::resetMacro() {
     Macro macro;
-
-    //macro.prepareMacro(this->getGameFPS());
 
     // TODO: tps bypass
     macro.prepareMacro(240);

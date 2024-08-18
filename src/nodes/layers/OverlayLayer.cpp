@@ -132,7 +132,7 @@ void OverlayLayer::onRender(CCObject*) {
 
 void OverlayLayer::onSave(CCObject*) {
     geode::utils::file::FilePickOptions options;
-    options.filters.push_back({ "GatoBot replay file", { "*.gbb" } });
+    options.filters.push_back({ "GatoBot replay file", { "*.gdr" } });
 
     geode::utils::file::pick(
         geode::utils::file::PickMode::SaveFile,
@@ -156,7 +156,7 @@ void OverlayLayer::onSave(CCObject*) {
 
 void OverlayLayer::onLoad(CCObject*) {
     geode::utils::file::FilePickOptions options;
-    options.filters.push_back({ "GatoBot replay file", { "*.gbb" } });
+    options.filters.push_back({ "GatoBot replay file", { "*.gdr" } });
 
     geode::utils::file::pick(
         geode::utils::file::PickMode::OpenFile,

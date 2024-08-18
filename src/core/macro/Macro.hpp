@@ -3,13 +3,26 @@
 #include "../Types.hpp"
 #include <filesystem>
 
+#include <gdr/gdr.hpp>
+
+// why is constructor protected this format is so ass
+struct gdrInput : gdr::Input {
+    gdrInput() = default;
+
+    gdrInput(int frame, PlayerButton button, bool player2, bool down) : gdr::Input(frame, static_cast<int>(button), player2, down) {} 
+};
+struct gdrReplay : gdr::Replay<gdrReplay, gdrInput> {
+    gdrReplay();
+};
+
 class Macro {
 private:
     int m_tps;
     std::vector<StepState> m_allSteps;
+    gdr::Level m_levelInfo;
 
 public:
-    using PackedAction = unsigned char; // 1 byte
+    using ReplayFormat = gdrReplay;
 
 public:
     void prepareMacro(int tps);
@@ -23,8 +36,6 @@ public:
 
     bool isEmpty();
 
-    static PackedAction packAction(const PlayerButtonCommand& action);
-    static PlayerButtonCommand unpackAction(const PackedAction& action);
     void recordingFinished();
 
     void saveFile(std::filesystem::path& filePath);

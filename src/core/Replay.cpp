@@ -6,7 +6,7 @@ void GatoBot::updateReplaying() {
     if(!this->canPerform())
         return;
 
-    geode::log::debug("Playing step {}", m_currentStep);
+    //geode::log::debug("Playing step {}", m_currentStep);
 
     auto pLayer = this->getPlayLayer();
 
@@ -20,7 +20,7 @@ void GatoBot::updateReplaying() {
             geode::log::error("STEP MISMATCH {} != {}", m_currentStep, shouldBeStep);
         }
 
-        if(pLayer->m_player1->m_position.x != step.m_player1.m_posX || pLayer->m_player1->m_position.y != step.m_player1.m_posY) {
+        if((step.m_player1.m_posX != 0 && step.m_player1.m_posY != 0) && (pLayer->m_player1->m_position.x != step.m_player1.m_posX || pLayer->m_player1->m_position.y != step.m_player1.m_posY)) {
             log::error("PLAYER POSITION INCONSISTENT ({}, {}) != ({}, {})", pLayer->m_player1->m_position.x, pLayer->m_player1->m_position.y, step.m_player1.m_posX, step.m_player1.m_posY);
         }
     }

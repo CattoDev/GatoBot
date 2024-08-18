@@ -71,6 +71,9 @@ endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
-target_link_libraries(${PROJECT_NAME} ${FFMPEG_LIBS})
+# GDR
+CPMAddPackage("gh:maxnut/GDReplayFormat#c70e869")
+
+target_link_libraries(${PROJECT_NAME} ${FFMPEG_LIBS} libGDR)
 
 setup_geode_mod(${PROJECT_NAME})
