@@ -89,6 +89,10 @@ std::vector<GLubyte>* Encoder::getFrameData() {
     return &m_frameData;
 }
 
+FMODCapture* Encoder::getFMODCapture() {
+    return m_audioCapture;
+}
+
 AVFrame* Encoder::allocateAVFrame(int pixFmt, int width, int height) {
     auto frame = av_frame_alloc();
     frame->format = static_cast<AVPixelFormat>(pixFmt);
@@ -134,14 +138,12 @@ void Encoder::setupEncoder(const RenderParams& params) {
     m_videoCodecContext->framerate = AVRational { params.m_fps, 1 };
 
     // set bitrate
-	/*m_videoCodecContext->bit_rate = 5 * 1024 * 1024;
-	m_videoCodecContext->rc_buffer_size = 4 * 1000 * 1000;
-	m_videoCodecContext->rc_max_rate = 5 * 1024 * 1024;
-	m_videoCodecContext->rc_min_rate = 5 * 1024 * 1024;*/
     m_videoCodecContext->bit_rate = params.m_videoBitrate * 1000;
 	m_videoCodecContext->rc_buffer_size = params.m_videoBitrate * 1000;
 	m_videoCodecContext->rc_max_rate = params.m_videoBitrate * 1000;
 	m_videoCodecContext->rc_min_rate = params.m_videoBitrate * 1000;
+
+    m_videoCodecContext->thread_count = std::thread::hardware_concurrency();
 
     // needed for x264 to work
     m_videoCodecContext->me_range = 16;
@@ -215,11 +217,6 @@ void Encoder::setupEncoder(const RenderParams& params) {
     // setup FMOD capture
     this->setupFMODCapture();
 
-    if(m_result.isErr()) {
-        if(m_audioCapture) m_audioCapture->disable();
-        return;
-    }
-
     // done
     geode::log::debug("Encoder configured!");
 }
@@ -269,12 +266,7 @@ void Encoder::setupFMODCapture() {
     if(!m_renderParams->m_includeAudio) return;
 
     m_audioCapture = FMODCapture::get();
-    
-    if(!m_audioCapture->setup()) {
-        // error!!
-        m_result = geode::Err("Failed to set up FMOD audio capture!");
-        return;
-    }
+    m_audioCapture->setup();
 }
 
 void Encoder::setupAudioEncoder(const RenderParams& params) {
@@ -349,20 +341,6 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
 }
 
 void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx) {
-    // also temp: only for video
-    // TODO: change
-    /*if(frame && video) {
-        geode::log::debug("Encoding frame: {}", frame->pts);
-
-        // convert RGB24 to YUV420P
-        if(frame->format == AV_PIX_FMT_RGB24) {
-            sws_scale(m_swsContext, frame->data, frame->linesize, 0, frame->height, m_YUVframe->data, m_YUVframe->linesize);
-
-            m_YUVframe->pts = frame->pts;
-            frame = m_YUVframe;
-        }
-    }*/
-
     int errCode = avcodec_send_frame(codecCtx, frame);
     if(errCode != 0) {
         char errStr[255];
@@ -396,8 +374,6 @@ void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecC
 }
 
 void Encoder::processFrameData() {
-    // TODO: rewrite the conversion part
-
     // set frame data
     for (unsigned int y = 0; y < m_RGBFrame->height; y++) {
 		for (unsigned int x = 0; x < m_RGBFrame->width; x++) {
@@ -514,6 +490,13 @@ void Encoder::encodingFinished() {
     if(m_audioCapture) m_audioCapture->disable();
 
     log::debug("Encoder::encodingFinished");
+}
+
+void Encoder::levelStarted() {
+    log::debug("Encoder::levelStarted");
+
+    m_audioCapture->begin();
+    //m_audioCapture->processed();
 }
 
 cocos2d::CCSize Encoder::getDesignResolution(int width, int height) {

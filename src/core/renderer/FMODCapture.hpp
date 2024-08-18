@@ -2,16 +2,14 @@
 
 #include <Geode/Geode.hpp>
 
-//#include <condition_variable>
-
 class FMODCapture {
 private:
     FMOD::DSP* m_captureDSP;
     FMOD::ChannelGroup* m_masterChannelGroup; 
-    //std::mutex m_threadLock;
 
 public:
     std::vector<float> m_capturedData;
+    bool m_started = false;
     bool m_dataProcessed = true;
     bool m_shutdown = false;
     std::mutex m_threadLock;
@@ -20,7 +18,8 @@ public:
 public:
     ~FMODCapture();
 
-    bool setup();
+    void setup();
+    void begin();
     void disable();
     std::vector<float>& capture();
     void processed();

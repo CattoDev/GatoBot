@@ -27,25 +27,24 @@ class $modify(PlayLayer) {
     }
 
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        //auto visSize = CCDirector::get()->getVisibleSize();
-        //log::debug("{} {}", visSize.width, visSize.height);
+        auto bot = GatoBot::get();
+        bot->levelEntered(this);
 
         if(!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
-
-        auto bot = GatoBot::get();
 
         if(bot->getStatus() != Rendering) return true;
 
         // Rendering stuff
+        
 
         return true;
     }
 
-    /*void loadFromCheckpoint(CheckpointObject* obj) {
+    void loadFromCheckpoint(CheckpointObject* obj) {
         PlayLayer::loadFromCheckpoint(obj);
 
         if(!obj) {
-            GB_LOG("loadFromCheckpoint called with an empty object?");
+            log::debug("loadFromCheckpoint called with an empty object?");
             return;
         }
 
@@ -54,7 +53,7 @@ class $modify(PlayLayer) {
         if(checkpoint->m_fields->frameState.m_frame) {
             GatoBot::get()->loadFrameState(checkpoint->m_fields->frameState);
         }
-    }*/
+    }
 
     void resume() {
         // fix frame delta inaccuracy
@@ -65,5 +64,10 @@ class $modify(PlayLayer) {
         PlayLayer::resume();
 
         bot->loadFrameState(state, false);
+    }
+
+    void startGame() {
+        PlayLayer::startGame();
+        GatoBot::get()->levelStarted();
     }
 };

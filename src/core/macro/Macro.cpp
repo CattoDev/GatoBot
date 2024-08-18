@@ -1,6 +1,5 @@
 #include "Macro.hpp"
 
-#include "Debug.hpp"
 #include <fstream>
 
 // for conversions
@@ -150,7 +149,7 @@ void Macro::recordingFinished() {
         }
     }
 
-    GB_LOG("Macro::recordingFinished");
+    geode::log::debug("Macro::recordingFinished");
 }
 
 void Macro::saveFile(std::filesystem::path& filePath) {
@@ -247,5 +246,5 @@ void Macro::loadFile(std::filesystem::path& filePath) {
         }
     }
 
-    GB_LOG("Macro: loaded {} frames", m_allFrames.size());
+    geode::log::debug("Macro: loaded {} frames", m_allFrames.size());
 }

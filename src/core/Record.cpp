@@ -8,18 +8,6 @@ void GatoBot::updateRecording() {
 
     auto pLayer = this->getPlayLayer();
 
-    // PlayerData player1 {
-    //     pLayer->m_player1->m_position.x,
-    //     pLayer->m_player1->m_position.y,
-    //     pLayer->m_player1->m_yVelocity
-    // };
-
-    // PlayerData player2 {
-    //     pLayer->m_player2->m_position.x,
-    //     pLayer->m_player2->m_position.y,
-    //     pLayer->m_player2->m_yVelocity
-    // };
-
     // get queued buttons
     gd::vector<PlayerButtonCommand> _buttonsRaw = pLayer->m_queuedButtons;
 
@@ -30,7 +18,6 @@ void GatoBot::updateRecording() {
     }
 
     // add frame
-    // LevelFrame frame { m_currentFrame, player1, player2, buttons, this->createFrameState() };
     LevelFrame frame { m_currentFrame, buttons, this->createFrameState() };
     m_loadedMacro.addFrame(frame);
 

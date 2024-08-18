@@ -5,7 +5,7 @@
 */
 
 // fuck is android doing lmaooo
-#ifdef GEODE_ANDROID
+#ifdef GEODE_IS_ANDROID
     #define strncpy_s strncpy
 #endif
 
@@ -19,11 +19,15 @@ FMODCapture::~FMODCapture() {
     g_captureInstance = nullptr;
 }
 
-FMOD_RESULT F_CALLBACK CaptureDSPCallback(FMOD_DSP_STATE *dspState, float *inBuffer, float *outBuffer, unsigned int length, int inChannels, int *outChannels) {
+FMOD_RESULT F_CALLBACK CaptureDSPCallback(FMOD_DSP_STATE* dspState, float* inBuffer, float* outBuffer, unsigned int length, int inChannels, int* outChannels) {
     auto cap = FMODCapture::get();
 
     // wait until data is processed
     std::unique_lock lk(cap->m_threadLock);
+
+    // not started yet: don't lock
+    if(!cap->m_started) return FMOD_OK;
+
     cap->m_lockVar.wait(lk, [cap] { return cap->m_dataProcessed; });
 
     // copy data
@@ -31,7 +35,7 @@ FMOD_RESULT F_CALLBACK CaptureDSPCallback(FMOD_DSP_STATE *dspState, float *inBuf
     const int dataSize = length * channels * sizeof(float);
 
     memcpy(cap->m_capturedData.data(), inBuffer, dataSize);
-    
+
     // unlock main thread
     cap->m_dataProcessed = false;
 
@@ -41,7 +45,7 @@ FMOD_RESULT F_CALLBACK CaptureDSPCallback(FMOD_DSP_STATE *dspState, float *inBuf
     return FMOD_OK;
 }
 
-bool FMODCapture::setup() {
+void FMODCapture::setup() {
     FMOD::System* system = FMODAudioEngine::sharedEngine()->m_system;
 
     // initialize buffer
@@ -59,8 +63,15 @@ bool FMODCapture::setup() {
     // add DSP
     system->getMasterChannelGroup(&m_masterChannelGroup);
     m_masterChannelGroup->addDSP(0, m_captureDSP);
+}
 
-    return true;
+void FMODCapture::begin() {
+    {
+        std::unique_lock l(m_threadLock);
+        m_dataProcessed = true;
+        m_started = true;
+    }
+    m_lockVar.notify_one();
 }
 
 void FMODCapture::disable() {
@@ -78,6 +89,7 @@ void FMODCapture::disable() {
 
 std::vector<float>& FMODCapture::capture() {
     {
+        // TODO: add timeout
         // wait for data
         std::unique_lock lk(m_threadLock);
         m_lockVar.wait(lk, [this] { return !m_dataProcessed; });

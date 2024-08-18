@@ -4,7 +4,7 @@ using namespace geode::prelude;
 
 GatoBot* g_botInstance = nullptr;
 
-// debug func (temp)
+// debug func
 std::string statToStr(BotStatus stat) {
     std::string str;
 
@@ -60,7 +60,7 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
         } break;
 
         case Replaying: {
-            GB_LOG("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
+            log::debug("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
         } break;
 
         case Rendering: {
@@ -83,17 +83,18 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
         m_firstSPF = CCDirector::sharedDirector()->getAnimationInterval();
 
         // restart attempt
-        if(auto pLayer = this->getPlayLayer()) {
-            pLayer->resetLevel();
+        if(newStatus != Rendering) {
+            auto pLayer = this->getPlayLayer();
+            if(pLayer) pLayer->resetLevel();
         }
     }
 
     m_currentFrame = 0;
 
+    log::debug("Changed status {} => {}", statToStr(m_status), statToStr(newStatus));
+
     m_status = newStatus;
     this->updateHooks();
-
-    GB_LOG("Changed status {} => {}", statToStr(m_status).c_str(), statToStr(newStatus).c_str());
 
     return result;
 }
@@ -107,8 +108,9 @@ int GatoBot::getGameFPS() {
 }
 
 void GatoBot::setGameSPF(double spf) {
-    CCDirector::sharedDirector()->setAnimationInterval(spf);
+    //log::debug("GatoBot::setGameSPF: {}", spf);
 
+    CCDirector::sharedDirector()->setAnimationInterval(spf);
     CCApplication::sharedApplication()->setAnimationInterval(spf);
 }
 
@@ -132,13 +134,9 @@ bool GatoBot::canPerform() {
     if(!pLayer)
         return false;
 
-    //log::debug("{}", offsetof(GJBaseGameLayer, m_started));
-
     return 
-        !(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())   
-     //&& TEMP_MBO(bool, pLayer, 0x2ac8) // levelStarted (PlayLayer::startGame)
-     //&& TEMP_MBO(bool, pLayer, 0x2ad0) // levelStarted (PlayLayer::startGame)
-     && pLayer->m_started
+        !(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())
+       && pLayer->m_started
     ;
 }
 
@@ -169,6 +167,10 @@ RenderParams* GatoBot::getRenderParams() {
     return &m_renderParams;
 }
 
+Encoder* GatoBot::getEncoder() {
+    return m_encoder;
+}
+
 void GatoBot::applyRenderParams(const RenderParams& params) {
     m_renderParams = params;
 }
@@ -185,7 +187,7 @@ void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
                 log::error("Error: {}", res.unwrapErr());
             }
 
-            log::debug("Hook {}: {}", hookName, toggle);       
+            log::debug("Hook {}: {}", hookName, toggle);
             break;
         }
     }
@@ -193,7 +195,6 @@ void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
 
 void GatoBot::updateHooks() {
     this->toggleHook("cocos2d::CCScheduler::update", m_status != BotStatus::Idle);
-    //this->toggleHook("glViewport", m_status == BotStatus::Rendering);
 }
 
 void GatoBot::applyWinSize() {
@@ -291,12 +292,41 @@ void GatoBot::updateCommon(float& dt) {
     this->setGameSPF((double)deltaTime / (double)this->getMainSpeed());
 }
 
+void GatoBot::levelEntered(PlayLayer* pLayer) {
+    log::debug("GatoBot::levelEntered");
+
+    // get the frame delta factor offsets
+    // for each platform cuz I'm too lazy
+    // to add bindings
+    // TODO: use actual members (ty sleepyut)
+    #define MBO_PTR(_type, _class, _offset) reinterpret_cast<_type*>(reinterpret_cast<uintptr_t>(_class) + _offset)
+
+    #ifdef GEODE_IS_WINDOWS
+    m_frameDeltaFactorPtrs.m_unk1 = MBO_PTR(double, pLayer, 0x3248);
+    m_frameDeltaFactorPtrs.m_unk2 = MBO_PTR(int, pLayer, 0x329c);
+    m_frameDeltaFactorPtrs.m_unk3 = MBO_PTR(float, pLayer, 0x330);
+    #endif
+
+    #ifdef GEODE_IS_ANDROID
+    m_frameDeltaFactorPtrs.m_unk1 = MBO_PTR(double, pLayer, 0x1);
+    m_frameDeltaFactorPtrs.m_unk2 = MBO_PTR(int, pLayer, 0x1);
+    m_frameDeltaFactorPtrs.m_unk3 = MBO_PTR(float, pLayer, 0x1);
+    #endif
+}
+
+void GatoBot::levelStarted() {
+    if(this->getStatus() != BotStatus::Idle) {
+        if(m_encoder) {
+            m_encoder->levelStarted();
+        }
+    }
+}
+
 void GatoBot::onLevelReset() {
-    GB_LOG("onLevelReset");
+    log::debug("GatoBot::onLevelReset");
 
     if(m_status == BotStatus::Idle) return;
 
-    // practice mode
     auto pLayer = this->getPlayLayer();
     const auto checkpoints = pLayer->m_checkpointArray;
 
@@ -314,9 +344,10 @@ void GatoBot::onLevelReset() {
         //TEMP_MBO(double, pLayer, 0x3248) = 0;
         //TEMP_MBO(int, pLayer, 0x329c) = 0;
         //TEMP_MBO(float, pLayer, 0x330) = 1.f;
-    }
-    else {
 
+        *m_frameDeltaFactorPtrs.m_unk1 = 0;
+        *m_frameDeltaFactorPtrs.m_unk2 = 0;
+        *m_frameDeltaFactorPtrs.m_unk3 = 1.f;
     }
 }
 
@@ -327,11 +358,23 @@ FrameState GatoBot::createFrameState() {
 
     state.m_frame = m_currentFrame;
 
-    //state.m_unk1 = TEMP_MBO(double, pLayer, 0x3248);
-    //state.m_unk2 = TEMP_MBO(int, pLayer, 0x329c);
-    //state.m_unk3 = TEMP_MBO(float, pLayer, 0x330);
+    state.m_player1 = PlayerData {
+        pLayer->m_player1->m_position.x,
+        pLayer->m_player1->m_position.y,
+        pLayer->m_player1->m_yVelocity
+    };
+
+    state.m_player2 = PlayerData {
+        pLayer->m_player2->m_position.x,
+        pLayer->m_player2->m_position.y,
+        pLayer->m_player2->m_yVelocity
+    };
+
+    state.m_frameDeltaFactors.m_unk1 = *m_frameDeltaFactorPtrs.m_unk1;
+    state.m_frameDeltaFactors.m_unk2 = *m_frameDeltaFactorPtrs.m_unk2;
+    state.m_frameDeltaFactors.m_unk3 = *m_frameDeltaFactorPtrs.m_unk3;
     
-    return state;
+    return std::move(state);
 }
 
 FrameState& GatoBot::getLastFrameState() {
@@ -339,23 +382,28 @@ FrameState& GatoBot::getLastFrameState() {
 }
 
 void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
-    GB_LOG("loadFrameState: {}", state.m_frame);
+    log::debug("GatoBot::loadFrameState: {}", state.m_frame);
 
     auto pLayer = this->getPlayLayer();
 
     m_currentFrame = state.m_frame;
-    //TEMP_MBO(double, pLayer, 0x3248) = state.m_unk1;
-    //TEMP_MBO(int, pLayer, 0x329c) = state.m_unk2;
-    //TEMP_MBO(float, pLayer, 0x330) = state.m_unk3;
 
-    // clear frames after current framestate
+    *m_frameDeltaFactorPtrs.m_unk1 = state.m_frameDeltaFactors.m_unk1;
+    *m_frameDeltaFactorPtrs.m_unk2 = state.m_frameDeltaFactors.m_unk2;
+    *m_frameDeltaFactorPtrs.m_unk3 = state.m_frameDeltaFactors.m_unk3;
+
+    // restore player velocity
+    pLayer->m_player1->m_yVelocity = state.m_player1.m_yVel;
+    pLayer->m_player2->m_yVelocity = state.m_player2.m_yVel;
+
+    // clear frames after current FrameState
     if(clearFrames) {
         m_loadedMacro.clearFramesFrom(m_currentFrame);
     }
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {
-    GB_LOG("botFinished");
+    log::debug("GatoBot::botFinished");
 
     this->setGameSPF(m_firstSPF);
     CCScheduler::get()->setTimeScale(1);

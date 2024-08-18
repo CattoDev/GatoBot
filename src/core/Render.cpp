@@ -26,6 +26,8 @@ Result<> GatoBot::setupRenderer() {
         CC_SAFE_DELETE(m_encoder);
     }
 
+    log::debug("GatoBot::setupRenderer finished");
+
     return result;
 }
 
@@ -36,7 +38,7 @@ void GatoBot::updateRendering() {
     // update replay
     this->updateReplaying();
 
-    // prepare frame for rendering
+    // render frame
     if(this->canPerform() && m_currentFrame % m_renderParams.m_frameFactor == 0) {
         m_encoder->captureFrame();
     }

@@ -62,11 +62,13 @@ public:
     
     geode::Result<> getLastResult();
     std::vector<GLubyte>* getFrameData();
+    FMODCapture* getFMODCapture();
     void processFrameData();
     void processAudio();
     void captureFrame();
     void visit();
     void encodingFinished();
+    void levelStarted();
 
     static cocos2d::CCSize getDesignResolution(int width, int height);
 };

@@ -1,14 +1,10 @@
 #pragma once
 
 #include "Types.hpp"
-#include "../Debug.hpp"
 #include "macro/Macro.hpp"
 #include "renderer/Encoder.hpp"
 
 #include <vector>
-
-// TEMP UNTIL GEODE MEMBERS ARE REVERSE ENGINEERED
-#define TEMP_MBO(type, class, offset) *reinterpret_cast<type*>(reinterpret_cast<uintptr_t>(class) + offset)
 
 #include <Geode/binding/PlayLayer.hpp>
 
@@ -21,6 +17,12 @@ private:
     float m_firstSPF;
     float m_mainSpeed = 1.f;
     Encoder* m_encoder;
+
+    struct FrameDeltaFactorPtrs {
+        double* m_unk1;
+        int* m_unk2;
+        float* m_unk3;
+    } m_frameDeltaFactorPtrs;
 
 public:
     static GatoBot* get();
@@ -40,6 +42,7 @@ public:
     int getCurrentFrameNum();
     Macro& getMacro();
     RenderParams* getRenderParams();
+    Encoder* getEncoder();
     void applyRenderParams(const RenderParams& params);
     geode::Result<> setupRenderer();
     void toggleHook(const std::string& hookName, bool toggle);
@@ -56,6 +59,8 @@ public:
     void updateReplaying();
     void updateRendering();
 
+    void levelEntered(PlayLayer*);
+    void levelStarted();
     void onLevelReset();
     FrameState createFrameState();
     FrameState& getLastFrameState();
