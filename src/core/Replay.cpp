@@ -6,28 +6,32 @@ void GatoBot::updateReplaying() {
     if(!this->canPerform())
         return;
 
+    geode::log::debug("Playing step {}", m_currentStep);
+
     auto pLayer = this->getPlayLayer();
 
     // get frame
-    const auto frame = m_loadedMacro.getFrame(m_currentFrame);
+    StepState& step = m_loadedMacro.getStep(m_currentStep);
 
-    // just debug
-    if(frame.m_frame != m_currentFrame) {
-        log::error("FRAME MISMATCH {} != {}", frame.m_frame, m_currentFrame);
+    // just debugging stuff
+    {
+        int shouldBeStep = static_cast<int>(pLayer->m_gameState.m_levelTime * 240.f);
+        if(m_currentStep != shouldBeStep) {
+            geode::log::error("STEP MISMATCH {} != {}", m_currentStep, shouldBeStep);
+        }
+
+        if(pLayer->m_player1->m_position.x != step.m_player1.m_posX || pLayer->m_player1->m_position.y != step.m_player1.m_posY) {
+            log::error("PLAYER POSITION INCONSISTENT ({}, {}) != ({}, {})", pLayer->m_player1->m_position.x, pLayer->m_player1->m_position.y, step.m_player1.m_posX, step.m_player1.m_posY);
+        }
     }
 
-    //GB_LOG("{} == {}", pLayer->m_player1->m_position.x, frame.m_player1.m_posX);
-    //if(pLayer->m_player1->m_position.x != frame.m_frameState.m_player1.m_posX || pLayer->m_player1->m_position.y != frame.m_frameState.m_player1.m_posY) {
-    //    log::error("PLAYER POSITION INCONSISTENT ({}, {}) != ({}, {})", pLayer->m_player1->m_position.x, pLayer->m_player1->m_position.y, frame.m_frameState.m_player1.m_posX, frame.m_frameState.m_player1.m_posY);
-    //}
-
     // queue buttons
-    if(frame.m_commands.size()) {
-        for(const PlayerButtonCommand& cmd : frame.m_commands) {
+    if(step.m_commands.size()) {
+        for(const PlayerButtonCommand& cmd : step.m_commands) {
             pLayer->queueButton(static_cast<int>(cmd.m_button), cmd.m_isPush, cmd.m_isPlayer2);
         }
     }
 
     // increment
-    m_currentFrame++;
+    m_currentStep++;
 }

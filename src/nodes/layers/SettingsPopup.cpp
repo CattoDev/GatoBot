@@ -58,14 +58,14 @@ bool SettingsPopup::init(BotStatus newStatus) {
 }
 
 CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
-    CCSize layerSize = status == Rendering ? CCSize { 440, 280 } : CCSize { 260, 180 };
+    CCSize layerSize = status == BotStatus::Rendering ? CCSize { 440, 280 } : CCSize { 260, 180 };
 
     // Record / Replay
-    if(status == Recording || status == Replaying) {
+    if(status == BotStatus::Recording || status == BotStatus::Replaying) {
         // fps
         auto fpsInput = this->createInput("FPS", { 100, 40 }, "0123456789");
         fpsInput->setPosition({ -50.f, 35.f });
-        fpsInput->setTouchEnabled(status == Recording);
+        fpsInput->setTouchEnabled(status == BotStatus::Recording);
         fpsInput->setString(std::to_string(this->getFPS()));
 
         m_buttonMenu->addChild(fpsInput);
@@ -79,7 +79,7 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
     }
 
     // Render
-    if(status == Rendering) {
+    if(status == BotStatus::Rendering) {
         // checkboxes section
         {
             m_checkboxesSection = SettingsSection::create("Options", { 100.f, layerSize.height - 70.f });
@@ -212,20 +212,22 @@ void SettingsPopup::createCheckbox(const char* caption, bool toggled, std::strin
 }
 
 int SettingsPopup::getFPS() {
-    if(m_status == Recording) {
+    /*if(m_status == Recording) {
         return GatoBot::get()->getGameFPS();
     }
     else {
         return GatoBot::get()->getMacro().getFPS();
-    }
+    }*/
+
+    return 0;
 }
 
 const char* SettingsPopup::statusToStr(BotStatus status) {
     switch(status) {
-        case Recording: {
+        case BotStatus::Recording: {
             return "Record";
         } break;
-        case Replaying: {
+        case BotStatus::Replaying: {
             return "Replay";
         } break;
         default: {
@@ -235,7 +237,7 @@ const char* SettingsPopup::statusToStr(BotStatus status) {
 }
 
 void SettingsPopup::applyRenderSettings(RenderParams* params) {
-    if(m_status != Rendering) return;
+    if(m_status != BotStatus::Rendering) return;
 
     auto videoSettings = typeinfo_cast<VideoSettingsLayer*>(m_settingsLayers.at(0));
     auto preset = videoSettings->getPresets().at(2);
@@ -320,7 +322,7 @@ void SettingsPopup::onStart(CCObject*) {
 
         auto FPS = std::stoi(m_inputNodes[0]->getString());
         bot->getMacro().prepareMacro(FPS);
-        bot->setGameFPS(FPS);
+        //bot->setGameFPS(FPS);
         bot->setMainSpeed(std::strtof(m_inputNodes[1]->getString().c_str(), nullptr));
     }
     else {

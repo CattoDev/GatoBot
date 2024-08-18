@@ -23,44 +23,48 @@ T readValFromBytesRaw(unsigned char* vec, size_t index) {
 
 ///////////
 
-void Macro::prepareMacro(int fps) {
-    m_fps = fps;
+void Macro::prepareMacro(int tps) {
+    m_tps = tps;
 
-    // allocate frames
-    m_allFrames.reserve(100000);
+    // allocate steps
+    m_allSteps.reserve(100000);
 }
 
-void Macro::addFrame(LevelFrame& frame) {
-    m_allFrames.push_back(std::move(frame));
+void Macro::addStep(StepState& step) {
+    m_allSteps.push_back(std::move(step));
 }
 
-LevelFrame& Macro::getFrame(int frame) {
-    return m_allFrames[frame];
+StepState& Macro::getStep(int stepIdx) {
+    return m_allSteps.at(stepIdx);
 }
 
-LevelFrame& Macro::getLastFrame() {
-    return m_allFrames.back();
+StepState& Macro::getLastStep() {
+    return m_allSteps.back();
 }
 
-void Macro::clearFramesFrom(int frame) {
-    frame = std::min(frame, this->getFrameCount());
-    m_allFrames.erase(m_allFrames.begin() + frame, m_allFrames.end());
+std::vector<PlayerButtonCommand> Macro::getLastButtonCommands() {
+    for(int i = this->getStepCount() - 1; i >= 0; i--) {
+        StepState& state = this->getStep(i);
+
+        if(state.m_commands.size() > 0) {
+            return state.m_commands;
+        }
+    }
+    
+    return {};
 }
 
-int Macro::getFrameCount() {
-    return static_cast<int>(m_allFrames.size());
+void Macro::clearStepsFrom(int stepIdx) {
+    stepIdx = std::min(stepIdx, this->getStepCount());
+    m_allSteps.erase(m_allSteps.begin() + stepIdx, m_allSteps.end());
 }
 
-float Macro::getDeltaTime() {
-    return 1.f / static_cast<float>(m_fps);
-}
-
-int Macro::getFPS() {
-    return m_fps;
+int Macro::getStepCount() {
+    return static_cast<int>(m_allSteps.size());
 }
 
 bool Macro::isEmpty() {
-    return m_allFrames.size() == 0;
+    return m_allSteps.size() == 0;
 }
 
 Macro::PackedAction Macro::packAction(const PlayerButtonCommand& action) {
@@ -100,20 +104,20 @@ PlayerButtonCommand Macro::unpackAction(const Macro::PackedAction& action) {
 }
 
 void Macro::recordingFinished() {
-    // fix commands
+    // fix commands (lmao how does this even happen)
     // <buttontype, <<frame, cmd>>>
     std::map<PlayerButton, std::vector<std::pair<int, PlayerButtonCommand>>> commands;
     std::vector<PlayerButton> buttonTypes;
 
-    for(auto& frame : m_allFrames) {
-        if(!frame.m_commands.size()) continue;
+    for(auto& step : m_allSteps) {
+        if(!step.m_commands.size()) continue;
 
-        for(auto& cmd : frame.m_commands) {
+        for(auto& cmd : step.m_commands) {
             if(!commands[cmd.m_button].size()) {
                 buttonTypes.push_back(cmd.m_button);
             }
 
-            commands[cmd.m_button].push_back(std::make_pair(frame.m_frame, cmd));
+            commands[cmd.m_button].push_back(std::make_pair(step.m_step, cmd));
         }
     }
 
@@ -131,12 +135,12 @@ void Macro::recordingFinished() {
                 if(cmd.m_isPush == lastOfKind.m_isPush) {
                     // remove command
                     size_t iter = 0;
-                    for(auto& _cmd : m_allFrames[cmdPair.first].m_commands) {
+                    for(auto& _cmd : m_allSteps[cmdPair.first].m_commands) {
                         if(_cmd.m_button == cmd.m_button
                         && _cmd.m_isPush == cmd.m_isPush
                         && _cmd.m_isPlayer2 == cmd.m_isPlayer2
                         ) {
-                            m_allFrames[cmdPair.first].m_commands.erase(m_allFrames[cmdPair.first].m_commands.begin() + iter);
+                            m_allSteps[cmdPair.first].m_commands.erase(m_allSteps[cmdPair.first].m_commands.begin() + iter);
                             break;
                         }
                         iter++;
@@ -164,7 +168,7 @@ void Macro::saveFile(std::filesystem::path& filePath) {
         - [2] {1 byte} Click count
         - [3] {1 byte * Click count} Click data(s)
     */
-    std::vector<unsigned char> macroData;
+    /*std::vector<unsigned char> macroData;
 
     // fix path
     if(!filePath.has_extension()) {
@@ -199,11 +203,11 @@ void Macro::saveFile(std::filesystem::path& filePath) {
 
     file.write((char*)macroData.data(), macroData.size());
 
-    file.close();
+    file.close();*/
 }
 
 void Macro::loadFile(std::filesystem::path& filePath) {
-    // TEMP: clear before loading
+    /*// TEMP: clear before loading
     this->clearFramesFrom(0);
 
     // read file
@@ -246,5 +250,5 @@ void Macro::loadFile(std::filesystem::path& filePath) {
         }
     }
 
-    geode::log::debug("Macro: loaded {} frames", m_allFrames.size());
+    geode::log::debug("Macro: loaded {} frames", m_allFrames.size());*/
 }

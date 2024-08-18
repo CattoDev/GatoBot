@@ -12,6 +12,8 @@ class $modify(PlayLayer) {
     void resetLevel() {
         auto bot = GatoBot::get();
 
+        bot->clearQueuedCommands();
+
         // fix button release on restart
         gd::vector<PlayerButtonCommand> buttons = m_queuedButtons;
 
@@ -26,13 +28,33 @@ class $modify(PlayLayer) {
         bot->onLevelReset();
     }
 
+    void pauseGame(bool forced) {
+        PlayLayer::pauseGame(forced);
+
+        if(!this->canPauseGame()) return;
+
+        // queue release commands
+        auto bot = GatoBot::get();
+
+        bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, false });
+        bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, true });
+
+        // platformer specific
+        if(m_uiLayer->m_inPlatformer) {
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Left, false, false });
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Left, false, true });
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, false });
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, true });
+        }
+    }
+
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
         auto bot = GatoBot::get();
         bot->levelEntered(this);
 
         if(!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
 
-        if(bot->getStatus() != Rendering) return true;
+        if(bot->getStatus() != BotStatus::Rendering) return true;
 
         // Rendering stuff
         
@@ -50,20 +72,9 @@ class $modify(PlayLayer) {
 
         auto checkpoint = as<GBCheckpoint*>(obj);
         
-        if(checkpoint->m_fields->frameState.m_frame) {
-            GatoBot::get()->loadFrameState(checkpoint->m_fields->frameState);
+        if(checkpoint->m_fields->stepState.m_step > 0) {
+            GatoBot::get()->loadStepState(checkpoint->m_fields->stepState);
         }
-    }
-
-    void resume() {
-        // fix frame delta inaccuracy
-        auto bot = GatoBot::get();
-
-        auto state = bot->createFrameState();
-
-        PlayLayer::resume();
-
-        bot->loadFrameState(state, false);
     }
 
     void startGame() {

@@ -5,7 +5,7 @@
 #include <Geode/cocos/cocoa/CCGeometry.h>
 #include <Geode/fmod/fmod_common.h>
 
-enum BotStatus { Idle, Recording, Replaying, Rendering };
+enum class BotStatus { Idle, Recording, Replaying, Rendering };
 
 struct PlayerData {
     float m_posX;
@@ -19,29 +19,14 @@ struct TPSLockData {
     float m_val3;
 };
 
-struct FrameState {
-    int m_frame;
-    
-    // shit that influences frame delta idk what to name these
-    struct FrameDeltaFactors {
-        double m_unk1;
-        int m_unk2;
-        float m_unk3;
-    } m_frameDeltaFactors;
+struct StepState {
+    int m_step;
+
+    std::vector<PlayerButtonCommand> m_commands;
 
     // player datas
     PlayerData m_player1;
     PlayerData m_player2;
-};
-
-struct LevelFrame {
-    int m_frame;
-
-    //gd::vector<PlayerButtonCommand> m_commands;
-    std::vector<PlayerButtonCommand> m_commands;
-
-    // only used in recording
-    FrameState m_frameState;
 };
 
 struct RenderParams {

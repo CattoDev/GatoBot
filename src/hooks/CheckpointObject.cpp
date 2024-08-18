@@ -7,25 +7,16 @@ using namespace geode::prelude;
 
 class $modify(GBCheckpoint, CheckpointObject) {
     struct Fields {
-        FrameState frameState;
+        StepState stepState;
     };
 
     bool init() {
         if(!CheckpointObject::init()) return false;
 
-        m_fields->frameState = GatoBot::get()->createFrameState();
+        m_fields->stepState = GatoBot::get()->createStepState();
 
-        log::debug("CheckpointObject::init frame {}", m_fields->frameState.m_frame);
+        log::debug("CheckpointObject::init step {}", m_fields->stepState.m_step);
 
         return true;
     }
-
-    /*static CheckpointObject* create() {
-        auto checkpoint = as<GBCheckpoint*>(CheckpointObject::create());
-        checkpoint->m_fields->frameState = GatoBot::get()->createFrameState();
-
-        GB_LOG("CheckpointObject::create frame {}", checkpoint->m_fields->frameState.m_frame);
-
-        return checkpoint;
-    }*/
 };

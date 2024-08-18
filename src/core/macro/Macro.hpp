@@ -5,22 +5,22 @@
 
 class Macro {
 private:
-    int m_fps;
-    std::vector<LevelFrame> m_allFrames;
+    int m_tps;
+    std::vector<StepState> m_allSteps;
 
 public:
     using PackedAction = unsigned char; // 1 byte
 
 public:
-    void prepareMacro(int fps);
+    void prepareMacro(int tps);
 
-    void addFrame(LevelFrame& frame);
-    LevelFrame& getFrame(int frame);
-    LevelFrame& getLastFrame();
-    void clearFramesFrom(int frame);
-    int getFrameCount();
-    float getDeltaTime();
-    int getFPS();
+    void addStep(StepState& step);
+    StepState& getStep(int stepIdx);
+    StepState& getLastStep();
+    std::vector<PlayerButtonCommand> getLastButtonCommands();
+    void clearStepsFrom(int stepIdx);
+    int getStepCount();
+
     bool isEmpty();
 
     static PackedAction packAction(const PlayerButtonCommand& action);

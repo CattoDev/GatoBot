@@ -9,19 +9,19 @@ std::string statToStr(BotStatus stat) {
     std::string str;
 
     switch(stat) {
-        case Idle: {
+        case BotStatus::Idle: {
             str = "Idle";
         } break;
 
-        case Recording: {
+        case BotStatus::Recording: {
             str = "Recording";
         } break;
 
-        case Replaying: {
+        case BotStatus::Replaying: {
             str = "Replaying";
         } break;
 
-        case Rendering: {
+        case BotStatus::Rendering: {
             str = "Rendering";
         } break;
     }
@@ -48,22 +48,22 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
     if(m_status == newStatus) return result;
 
     // switch to idle first if not already
-    if(m_status != Idle && newStatus != Idle) {
+    if(m_status != BotStatus::Idle && newStatus != BotStatus::Idle) {
         (void)this->changeStatus(BotStatus::Idle);
 
         return this->changeStatus(newStatus);
     }
 
     switch(newStatus) {
-        case Recording: {
+        case BotStatus::Recording: {
             this->resetMacro();
         } break;
 
-        case Replaying: {
-            log::debug("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
+        case BotStatus::Replaying: {
+            //log::debug("Replaying {} frames at {} FPS (dt: {})", m_loadedMacro.getFrameCount(), std::round(1.f / m_loadedMacro.getDeltaTime()), m_loadedMacro.getDeltaTime());
         } break;
 
-        case Rendering: {
+        case BotStatus::Rendering: {
             // set up the renderer 
             result = this->setupRenderer();
 
@@ -78,18 +78,18 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
         } break;
     }
 
-    if(newStatus != Idle) {
+    if(newStatus != BotStatus::Idle) {
         // save animation interval (SPF)
-        m_firstSPF = CCDirector::sharedDirector()->getAnimationInterval();
+        /*m_firstSPF = CCDirector::sharedDirector()->getAnimationInterval();
 
         // restart attempt
         if(newStatus != Rendering) {
             auto pLayer = this->getPlayLayer();
             if(pLayer) pLayer->resetLevel();
-        }
+        }*/
     }
 
-    m_currentFrame = 0;
+    m_currentStep = 0;
 
     log::debug("Changed status {} => {}", statToStr(m_status), statToStr(newStatus));
 
@@ -97,27 +97,6 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
     this->updateHooks();
 
     return result;
-}
-
-int GatoBot::getGameFPS() {
-    auto dir = CCDirector::sharedDirector();
-    float interval = dir->getAnimationInterval();
-
-    // smth gotta break
-    return static_cast<int>(std::round(1.f / interval));
-}
-
-void GatoBot::setGameSPF(double spf) {
-    //log::debug("GatoBot::setGameSPF: {}", spf);
-
-    CCDirector::sharedDirector()->setAnimationInterval(spf);
-    CCApplication::sharedApplication()->setAnimationInterval(spf);
-}
-
-void GatoBot::setGameFPS(int fps) {
-    //CCDirector::sharedDirector()->setAnimationInterval(1.f / static_cast<float>(fps));
-
-    this->setGameSPF((double)(1.f / static_cast<float>(fps)));
 }
 
 void GatoBot::setMainSpeed(float speed) {
@@ -135,7 +114,8 @@ bool GatoBot::canPerform() {
         return false;
 
     return 
-        !(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())
+        //!(this->isPlayback() && m_currentFrame >= m_loadedMacro.getFrameCount())
+        !(this->isPlayback() && m_currentStep >= m_loadedMacro.getStepCount())
        && pLayer->m_started
     ;
 }
@@ -145,18 +125,29 @@ BotStatus GatoBot::getStatus() {
 }
 
 bool GatoBot::isPlayback() {
-    return m_status == Replaying || m_status == Rendering;
+    return m_status == BotStatus::Replaying || m_status == BotStatus::Rendering;
 }
 
 void GatoBot::resetMacro() {
     Macro macro;
 
-    macro.prepareMacro(this->getGameFPS());
+    //macro.prepareMacro(this->getGameFPS());
+
+    // TODO: tps bypass
+    macro.prepareMacro(240);
     m_loadedMacro = std::move(macro);
 }
 
-int GatoBot::getCurrentFrameNum() {
-    return m_currentFrame;
+void GatoBot::queuePlayerCommand(const PlayerButtonCommand& cmd) {
+    m_queuedPlayerCommands.push_back(cmd);
+}
+
+void GatoBot::clearQueuedCommands() {
+    m_queuedPlayerCommands.clear();
+}
+
+int GatoBot::getCurrentStepIdx() {
+    return m_currentStep;
 }
 
 Macro& GatoBot::getMacro() {
@@ -194,7 +185,7 @@ void GatoBot::toggleHook(const std::string& hookName, bool toggle) {
 }
 
 void GatoBot::updateHooks() {
-    this->toggleHook("cocos2d::CCScheduler::update", m_status != BotStatus::Idle);
+    this->toggleHook("cocos2d::CCScheduler::update", m_status == BotStatus::Rendering);
 }
 
 void GatoBot::applyWinSize() {
@@ -252,66 +243,43 @@ void GatoBot::resetVolume() {
     fmod->m_sfxVolume = m_renderParams.m_originalSFXVolume;
 }
 
-void GatoBot::updateBot(float& dt) {
-    const bool gamePaused = this->getPlayLayer() != nullptr ? this->getPlayLayer()->m_isPaused : true;
+//void GatoBot::updateBot(float& dt) {
+void GatoBot::updateBot() {
+    if(m_status == BotStatus::Idle) return;
 
-    if(m_status != BotStatus::Idle && !gamePaused) {
-        this->updateCommon(dt);
+    this->updateCommon();
 
-        switch(m_status) {
-            case Recording: {
-                this->updateRecording();
-            } break;
+    switch(m_status) {
+        case BotStatus::Recording: {
+            this->updateRecording();
+        } break;
 
-            case Replaying: {
-                this->updateReplaying();
-            } break;
+        case BotStatus::Replaying: {
+            this->updateReplaying();
+        } break;
 
-            case Rendering: {
-                this->updateRendering();
-            } break;
+        case BotStatus::Rendering: {
+            this->updateRendering();
+        } break;
 
-            default: break;
-        }
+        default: break;
     }
 }
 
-void GatoBot::updateCommon(float& dt) {
-    if(m_status != Recording) {
-        // out of frames
-        if(m_currentFrame >= m_loadedMacro.getFrameCount()) {
+void GatoBot::updateCommon() {
+    if(m_status != BotStatus::Recording) {
+        // out of steps
+        if(m_currentStep >= m_loadedMacro.getStepCount()) {
             (void)this->changeStatus(BotStatus::Idle);
             return;
         }
     }
-
-    // lock delta
-    float deltaTime = m_loadedMacro.getDeltaTime();
-    
-    dt = deltaTime;
-    this->setGameSPF((double)deltaTime / (double)this->getMainSpeed());
 }
 
 void GatoBot::levelEntered(PlayLayer* pLayer) {
     log::debug("GatoBot::levelEntered");
 
-    // get the frame delta factor offsets
-    // for each platform cuz I'm too lazy
-    // to add bindings
-    // TODO: use actual members (ty sleepyut)
-    #define MBO_PTR(_type, _class, _offset) reinterpret_cast<_type*>(reinterpret_cast<uintptr_t>(_class) + _offset)
-
-    #ifdef GEODE_IS_WINDOWS
-    m_frameDeltaFactorPtrs.m_unk1 = MBO_PTR(double, pLayer, 0x3248);
-    m_frameDeltaFactorPtrs.m_unk2 = MBO_PTR(int, pLayer, 0x329c);
-    m_frameDeltaFactorPtrs.m_unk3 = MBO_PTR(float, pLayer, 0x330);
-    #endif
-
-    #ifdef GEODE_IS_ANDROID
-    m_frameDeltaFactorPtrs.m_unk1 = MBO_PTR(double, pLayer, 0x1);
-    m_frameDeltaFactorPtrs.m_unk2 = MBO_PTR(int, pLayer, 0x1);
-    m_frameDeltaFactorPtrs.m_unk3 = MBO_PTR(float, pLayer, 0x1);
-    #endif
+    // this function had a purpose once
 }
 
 void GatoBot::levelStarted() {
@@ -331,88 +299,39 @@ void GatoBot::onLevelReset() {
     const auto checkpoints = pLayer->m_checkpointArray;
 
     if(!(pLayer->m_isPracticeMode && checkpoints->count())) {
-        m_currentFrame = 0;
+        m_currentStep = 0;
 
-        if(m_status == Recording) {
-            m_loadedMacro.clearFramesFrom(m_currentFrame);
+        if(m_status == BotStatus::Recording) {
+            m_loadedMacro.clearStepsFrom(m_currentStep);
         }
-
-        //TEMP_MBO(double, pLayer, 0x2ac8) = 0;
-        //TEMP_MBO(int, pLayer, 0x2b04) = 0;
-        //TEMP_MBO(float, pLayer, 0x2d0) = 1.f;
-
-        //TEMP_MBO(double, pLayer, 0x3248) = 0;
-        //TEMP_MBO(int, pLayer, 0x329c) = 0;
-        //TEMP_MBO(float, pLayer, 0x330) = 1.f;
-
-        *m_frameDeltaFactorPtrs.m_unk1 = 0;
-        *m_frameDeltaFactorPtrs.m_unk2 = 0;
-        *m_frameDeltaFactorPtrs.m_unk3 = 1.f;
     }
 }
 
-FrameState GatoBot::createFrameState() {
-    FrameState state;
+void GatoBot::loadStepState(const StepState& state, bool clearStepsFromMacro) {
+    log::debug("GatoBot::loadFrameState: {}", state.m_step);
 
     auto pLayer = this->getPlayLayer();
 
-    state.m_frame = m_currentFrame;
-
-    state.m_player1 = PlayerData {
-        pLayer->m_player1->m_position.x,
-        pLayer->m_player1->m_position.y,
-        pLayer->m_player1->m_yVelocity
-    };
-
-    state.m_player2 = PlayerData {
-        pLayer->m_player2->m_position.x,
-        pLayer->m_player2->m_position.y,
-        pLayer->m_player2->m_yVelocity
-    };
-
-    state.m_frameDeltaFactors.m_unk1 = *m_frameDeltaFactorPtrs.m_unk1;
-    state.m_frameDeltaFactors.m_unk2 = *m_frameDeltaFactorPtrs.m_unk2;
-    state.m_frameDeltaFactors.m_unk3 = *m_frameDeltaFactorPtrs.m_unk3;
-    
-    return std::move(state);
-}
-
-FrameState& GatoBot::getLastFrameState() {
-    return m_loadedMacro.getLastFrame().m_frameState;
-}
-
-void GatoBot::loadFrameState(const FrameState& state, bool clearFrames) {
-    log::debug("GatoBot::loadFrameState: {}", state.m_frame);
-
-    auto pLayer = this->getPlayLayer();
-
-    m_currentFrame = state.m_frame;
-
-    *m_frameDeltaFactorPtrs.m_unk1 = state.m_frameDeltaFactors.m_unk1;
-    *m_frameDeltaFactorPtrs.m_unk2 = state.m_frameDeltaFactors.m_unk2;
-    *m_frameDeltaFactorPtrs.m_unk3 = state.m_frameDeltaFactors.m_unk3;
+    m_currentStep = state.m_step;
 
     // restore player velocity
     pLayer->m_player1->m_yVelocity = state.m_player1.m_yVel;
     pLayer->m_player2->m_yVelocity = state.m_player2.m_yVel;
 
-    // clear frames after current FrameState
-    if(clearFrames) {
-        m_loadedMacro.clearFramesFrom(m_currentFrame);
+    // clear steps after current StepState
+    if(clearStepsFromMacro) {
+        m_loadedMacro.clearStepsFrom(m_currentStep);
     }
 }
 
 void GatoBot::botFinished(BotStatus oldStatus) {
     log::debug("GatoBot::botFinished");
 
-    this->setGameSPF(m_firstSPF);
-    CCScheduler::get()->setTimeScale(1);
-
-    if(oldStatus == Recording) {
+    if(oldStatus == BotStatus::Recording) {
         m_loadedMacro.recordingFinished();
     }
 
-    if(oldStatus == Rendering) {
+    if(oldStatus == BotStatus::Rendering) {
         // free encoder
         m_encoder->encodingFinished();
         CC_SAFE_DELETE(m_encoder);

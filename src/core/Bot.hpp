@@ -13,16 +13,11 @@ private:
     BotStatus m_status = BotStatus::Idle;
     Macro m_loadedMacro;
     RenderParams m_renderParams;
-    int m_currentFrame = 0;
+    std::vector<PlayerButtonCommand> m_queuedPlayerCommands;
+    int m_currentStep = 0;
     float m_firstSPF;
     float m_mainSpeed = 1.f;
     Encoder* m_encoder;
-
-    struct FrameDeltaFactorPtrs {
-        double* m_unk1;
-        int* m_unk2;
-        float* m_unk3;
-    } m_frameDeltaFactorPtrs;
 
 public:
     static GatoBot* get();
@@ -30,16 +25,15 @@ public:
 
     geode::Result<> changeStatus(BotStatus newStatus);
 
-    int getGameFPS();
-    void setGameSPF(double spf);
-    void setGameFPS(int fps);
     void setMainSpeed(float speed);
     float getMainSpeed();
     bool canPerform();
     BotStatus getStatus();
     bool isPlayback();
     void resetMacro();
-    int getCurrentFrameNum();
+    void queuePlayerCommand(const PlayerButtonCommand& cmd);
+    void clearQueuedCommands();
+    int getCurrentStepIdx();
     Macro& getMacro();
     RenderParams* getRenderParams();
     Encoder* getEncoder();
@@ -53,8 +47,8 @@ public:
     void setVolume(float volume);
     void resetVolume();
 
-    void updateBot(float& dt);
-    void updateCommon(float& dt);
+    void updateBot();
+    void updateCommon();
     void updateRecording();
     void updateReplaying();
     void updateRendering();
@@ -62,9 +56,8 @@ public:
     void levelEntered(PlayLayer*);
     void levelStarted();
     void onLevelReset();
-    FrameState createFrameState();
-    FrameState& getLastFrameState();
-    void loadFrameState(const FrameState& state, bool clearFrames = true);
+    StepState createStepState();
+    void loadStepState(const StepState& state, bool clearStepsFromMacro = true);
     void botFinished(BotStatus oldStatus);
     void finishPlayback();
 };
