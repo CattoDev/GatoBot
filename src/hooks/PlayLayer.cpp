@@ -28,7 +28,7 @@ class $modify(PlayLayer) {
         bot->onLevelReset();
     }
 
-    void pauseGame(bool forced) {
+    /*void pauseGame(bool forced) {
         PlayLayer::pauseGame(forced);
 
         if(!this->canPauseGame()) return;
@@ -36,6 +36,8 @@ class $modify(PlayLayer) {
         // TODO: find a better fix :sob:
         // queue release commands
         auto bot = GatoBot::get();
+
+        bot->clearQueuedCommands();
 
         bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, false });
         bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, true });
@@ -47,7 +49,7 @@ class $modify(PlayLayer) {
             bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, false });
             bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, true });
         }
-    }
+    }*/
 
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
         auto bot = GatoBot::get();
@@ -74,7 +76,23 @@ class $modify(PlayLayer) {
         auto checkpoint = as<GBCheckpoint*>(obj);
         
         if(checkpoint->m_fields->stepState.m_step > 0) {
-            GatoBot::get()->loadStepState(checkpoint->m_fields->stepState);
+            auto bot = GatoBot::get();
+
+            bot->loadStepState(checkpoint->m_fields->stepState);
+        
+            // fix an issue where the button would still be held
+            // after respawning from a checkpoint after releasing
+            // said button
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, false });
+            bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Jump, false, true });
+
+            // platformer specific
+            if(m_uiLayer->m_inPlatformer) {
+                bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Left, false, false });
+                bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Left, false, true });
+                bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, false });
+                bot->queuePlayerCommand(PlayerButtonCommand { PlayerButton::Right, false, true });
+            }
         }
     }
 

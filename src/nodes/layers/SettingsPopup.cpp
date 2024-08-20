@@ -63,7 +63,7 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
     // Record / Replay
     if(status == BotStatus::Recording || status == BotStatus::Replaying) {
         // fps
-        auto fpsInput = this->createInput("FPS", { 100, 40 }, "0123456789");
+        auto fpsInput = this->createInput("TPS", { 100, 40 }, "0123456789");
         fpsInput->setPosition({ -50.f, 35.f });
         fpsInput->setTouchEnabled(status == BotStatus::Recording);
         fpsInput->setString(std::to_string(this->getFPS()));
@@ -219,7 +219,7 @@ int SettingsPopup::getFPS() {
         return GatoBot::get()->getMacro().getFPS();
     }*/
 
-    return 0;
+    return 240;
 }
 
 const char* SettingsPopup::statusToStr(BotStatus status) {
@@ -322,7 +322,6 @@ void SettingsPopup::onStart(CCObject*) {
 
         auto FPS = std::stoi(m_inputNodes[0]->getString());
         bot->getMacro().prepareMacro(FPS);
-        //bot->setGameFPS(FPS);
         bot->setMainSpeed(std::strtof(m_inputNodes[1]->getString().c_str(), nullptr));
     }
     else {
@@ -344,14 +343,6 @@ void SettingsPopup::onStart(CCObject*) {
 
         // apply toggles
         m_renderParams.m_includeAudio = m_toggles.at(0)->isToggled();
-
-        // get default song path
-        /*if(m_renderParams.m_includeAudio) {
-            auto fileUtils = CCFileUtils::sharedFileUtils();
-
-            m_renderParams.m_songPath = fileUtils->fullPathForFilename(bot->getPlayLayer()->m_level->getAudioFileName().c_str(), true);
-            //m_renderParams.m_songPath = bot->getPlayLayer()->m_level->getAudioFileName();
-        }*/
     }
 
     if(!settingsApplied) return;

@@ -26,10 +26,12 @@ void GatoBot::updateRecording() {
 
             if(add) step.m_commands.push_back(cmd);
         }
+
+        this->clearQueuedCommands();
     }
 
-    m_loadedMacro.addStep(step);
 
+    m_loadedMacro.addStep(step);
     m_currentStep++;
 }
 

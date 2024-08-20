@@ -246,7 +246,7 @@ void GatoBot::updateDelta(float& dt) {
     switch(m_status) {
         case BotStatus::Recording:
         case BotStatus::Replaying: {
-            dt = CCDirector::get()->getAnimationInterval() * CCScheduler::get()->getTimeScale() * m_mainSpeed;
+            dt = CCDirector::get()->getAnimationInterval() * m_mainSpeed;
         } break;
 
         case BotStatus::Rendering: {
