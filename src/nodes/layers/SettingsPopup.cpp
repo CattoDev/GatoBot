@@ -3,6 +3,7 @@
 #include "GBAlertLayer.hpp"
 
 #include "VideoSettingsLayer.hpp"
+#include "AudioSettingsLayer.hpp"
 
 #include <core/Bot.hpp>
 
@@ -125,42 +126,50 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
         {
             CCSize settingsSectionSize = { layerSize.width - 130.f, layerSize.height - 95.f };
 
-            // video settings
-            auto videoSettings = SettingsSection::create(nullptr, settingsSectionSize);
-            videoSettings->setPosition({ 50.f, -7.5f });
-            videoSettings->setTag(SettingsMenuType::Video);
-            m_settingsSections.push_back(videoSettings);
-            {
-                // scroll layer
-                CCSize scrollSize { settingsSectionSize.width, settingsSectionSize.height - .5f }; 
-                CCRect scrollRect {
-                    -scrollSize.width / 2,
-                    -scrollSize.height / 2,
-                    scrollSize.width,
-                    scrollSize.height
-                };
-                auto scroll = ScrollLayer::create(scrollRect, true, true);
+            auto scrollMenu = CCMenu::create(); // create a menu inside ScrollLayer so it doesn't fuck up the settings layers
+            scrollMenu->setPosition(CCPointZero);
 
-                auto settingsLayerSize = settingsSectionSize + CCSize { 0.f, 30.f };
+            auto settingsSection = SettingsSection::create(nullptr, settingsSectionSize);
+            settingsSection->setPosition(CCPoint { 50.f, -7.5f });
+            m_settingsSections.push_back(settingsSection);
+
+            m_buttonMenu->addChild(settingsSection);
+
+            // scroll layer
+            CCSize scrollSize { settingsSectionSize.width, settingsSectionSize.height - .5f }; 
+            CCRect scrollRect {
+                -scrollSize.width / 2,
+                -scrollSize.height / 2,
+                scrollSize.width,
+                scrollSize.height
+            };
+            m_scrollLayer = ScrollLayer::create(scrollRect, true, true);
+            m_scrollLayer->m_contentLayer->addChild(scrollMenu);
+            settingsSection->addChild(m_scrollLayer);
+
+            // video settings
+            {
+                CCSize settingsLayerSize = settingsSectionSize + CCSize { 0.f, 30.f };
+
                 auto settings = VideoSettingsLayer::create(&m_renderParams, settingsLayerSize);
                 settings->setPosition(settingsLayerSize / 2);
+                settings->setTag(SettingsMenuType::Video);
                 m_settingsLayers.push_back(settings);
 
-                scroll->m_contentLayer->addChild(settings);
-                scroll->m_contentLayer->setContentSize(settings->getContentSize());
-                scroll->scrollToTop();
-
-                videoSettings->addChild(scroll);
+                scrollMenu->addChild(settings);
             }
-            m_buttonMenu->addChild(videoSettings);
 
             // audio settings
-            auto audioSettings = SettingsSection::create(nullptr, settingsSectionSize);
-            audioSettings->setPosition({ 50.f, -7.5f });
-            audioSettings->setTag(SettingsMenuType::Audio);
-            m_settingsSections.push_back(audioSettings);
+            {
+                CCSize settingsLayerSize = settingsSectionSize; //+ CCSize { 0.f, 30.f };
 
-            m_buttonMenu->addChild(audioSettings);
+                auto settings = AudioSettingsLayer::create(&m_renderParams, settingsLayerSize);
+                settings->setPosition(settingsLayerSize / 2);
+                settings->setTag(SettingsMenuType::Audio);
+                m_settingsLayers.push_back(settings);
+
+                scrollMenu->addChild(settings);
+            }
         }
 
         // default is video settings
@@ -240,6 +249,7 @@ void SettingsPopup::applyRenderSettings(RenderParams* params) {
     if(m_status != BotStatus::Rendering) return;
 
     auto videoSettings = typeinfo_cast<VideoSettingsLayer*>(m_settingsLayers.at(0));
+    auto audioSettings = typeinfo_cast<AudioSettingsLayer*>(m_settingsLayers.at(1));
     auto preset = videoSettings->getPresets().at(2);
 
     // default settings
@@ -248,16 +258,18 @@ void SettingsPopup::applyRenderSettings(RenderParams* params) {
         params->m_height = preset.m_height;
         params->m_fps = preset.m_fps;
         params->m_videoBitrate = preset.m_videoBitrate;
+        params->m_audioBitrate = 128;
         params->m_codec = "libx264";
     }
 
     // apply settings
     videoSettings->applyRenderParams();
+    audioSettings->applyRenderParams();
 }
 
 void SettingsPopup::createInputBackgrounds() {
     for(auto& input : m_inputNodes) {
-        auto bg = extension::CCScale9Sprite::create("square02_small.png", { 0, 0, 40, 40 });
+        auto bg = extension::CCScale9Sprite::create("square02_small.png", { 0, 0, 40.f, 40.f });
         bg->setPosition(m_buttonMenu->convertToWorldSpace(input->getPosition()));
         bg->setContentSize(input->getContentSize());
         bg->setOpacity(100);
@@ -271,10 +283,19 @@ void SettingsPopup::invalidInput() {
 }
 
 void SettingsPopup::selectMenu(SettingsMenuType menuType) {
-    // toggle the correct menu
-    for(auto& menu : m_settingsSections) {
-        menu->setVisible(menuType == menu->getTag());
+    // toggle the correct layer
+    for(auto& layer : m_settingsLayers) {
+        bool curLayer = menuType == layer->getTag();
+
+        layer->setVisible(curLayer);
+        layer->setTouchEnabled(curLayer);
+
+        if(curLayer) {
+            m_scrollLayer->m_contentLayer->setContentSize(layer->getContentSize());
+            m_scrollLayer->scrollToTop();
+        }
     }
+
 
     // highlight the correct button
     for(auto& btn : m_menuTypeButtons) {
@@ -389,8 +410,10 @@ void SettingsPopup::onStart(CCObject*) {
             OverlayLayer::close();
 
             // close PauseLayer and restart
-            if(auto pause = typeinfo_cast<PauseLayer*>(CCDirector::sharedDirector()->getRunningScene()->getChildByID("PauseLayer"))) {
-                pause->onRestart(nullptr);
+            for(auto child : CCArrayExt<CCNode*>(CCDirector::get()->getRunningScene()->getChildren())) {
+                if(auto p = typeinfo_cast<PauseLayer*>(child)) {
+                    p->onRestart(nullptr);
+                }
             }
         }
     }

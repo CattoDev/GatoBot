@@ -78,17 +78,6 @@ Result<> GatoBot::changeStatus(BotStatus newStatus) {
         } break;
     }
 
-    if(newStatus != BotStatus::Idle) {
-        // save animation interval (SPF)
-        /*m_firstSPF = CCDirector::sharedDirector()->getAnimationInterval();
-
-        // restart attempt
-        if(newStatus != Rendering) {
-            auto pLayer = this->getPlayLayer();
-            if(pLayer) pLayer->resetLevel();
-        }*/
-    }
-
     m_currentStep = 0;
 
     log::debug("Changed status {} => {}", statToStr(m_status), statToStr(newStatus));

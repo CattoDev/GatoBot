@@ -12,18 +12,6 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
     float left = -size.width / 2 + 7.5f;
     float right = size.width / 2 - 7.5f;
 
-    std::function<Result<>(const char*, int*)> applyInt = [](const char* rawStr, int* value) {
-        Result<> res = Ok();
-
-        char *endPtr;
-        *value = strtol(rawStr, &endPtr, 10);
-
-        // failed to convert
-        if(*endPtr != '\0') res = Err("Invalid int in input node!");
-
-        return res;
-    };
-
     // resolution inputs
     {
         this->createLabel("Resolution", CCPoint { left, top - 12.5f }, 100.f);
@@ -31,17 +19,17 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
         CCPoint inputsPosLeft = { left + 20.f, top - 32.5f };
 
         // width
-        this->createInput("0123456789", CCSize { 40.f, 20.f }, inputsPosLeft, [applyInt, renderParams](std::string rawStr) { 
+        this->createInput("0123456789", CCSize { 40.f, 20.f }, inputsPosLeft, [renderParams](std::string rawStr) { 
             return applyInt(rawStr.c_str(), &renderParams->m_width);
         })->m_inputNode->setMaxCharCount(4);
 
         // height
-        this->createInput("0123456789", CCSize { 40.f, 20.f }, inputsPosLeft + CCPoint { 55.f, 0.f }, [applyInt, renderParams](std::string rawStr) { 
+        this->createInput("0123456789", CCSize { 40.f, 20.f }, inputsPosLeft + CCPoint { 55.f, 0.f }, [renderParams](std::string rawStr) { 
             return applyInt(rawStr.c_str(), &renderParams->m_height);
         })->m_inputNode->setMaxCharCount(4);
 
         // FPS
-        this->createInput("0123456789", CCSize { 30.f, 20.f }, inputsPosLeft + CCPoint { 105.f, 0.f }, [applyInt, renderParams](std::string rawStr) { 
+        this->createInput("0123456789", CCSize { 30.f, 20.f }, inputsPosLeft + CCPoint { 105.f, 0.f }, [renderParams](std::string rawStr) { 
             return applyInt(rawStr.c_str(), &renderParams->m_fps);
         })->m_inputNode->setMaxCharCount(3);
 
@@ -58,11 +46,13 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
         CCPoint inputsPosLeft = labelPos + CCPoint { 50.f, -25.f };
 
         // codec input
-        this->createInput(geode::getCommonFilterAllowedChars(CommonFilter::Name), CCSize { 100.f, 30.f }, inputsPosLeft, [renderParams](std::string rawStr) { 
+        auto input = this->createInput(geode::getCommonFilterAllowedChars(CommonFilter::Name), CCSize { 100.f, 30.f }, inputsPosLeft, [renderParams](std::string rawStr) { 
             renderParams->m_codec = rawStr;
             
             return Ok();
-        })->m_inputNode->setMaxCharCount(20);
+        });
+        input->m_inputNode->setMaxCharCount(20);
+        input->m_inputNode->setEnabled(false);
     }
 
     // presets
@@ -87,19 +77,19 @@ bool VideoSettingsLayer::init(RenderParams* renderParams, const CCSize& size) {
         this->createPresetButton("720p", { 1280, 720, 60, 6000, "libx264" });
         this->createPresetButton("1080p", { 1920, 1080, 60, 10000, "libx264" });
         this->createPresetButton("4K", { 3840, 2160, 60, 50000, "libx264" });
-        this->createPresetButton("8K", { 7680, 4320, 60, 100000, "libx265" });
+        //this->createPresetButton("8K", { 7680, 4320, 60, 100000, "libx265" });
     }
 
     // video bitrate
     {
         CCPoint labelPos = { left, top - 115.f };
 
-        this->createLabel("Bitrate", labelPos, 100.f);
+        this->createLabel("Bitrate (Kb/s)", labelPos, 100.f);
 
         CCPoint inputsPosLeft = labelPos + CCPoint { 50.f, -25.f };
 
-        // codec input
-        this->createInput("0123456789", CCSize { 100.f, 30.f }, inputsPosLeft, [applyInt, renderParams](std::string rawStr) { 
+        // bitrate input
+        this->createInput("0123456789", CCSize { 100.f, 30.f }, inputsPosLeft, [renderParams](std::string rawStr) { 
             return applyInt(rawStr.c_str(), &renderParams->m_videoBitrate);
         })->m_inputNode->setMaxCharCount(10);
     }

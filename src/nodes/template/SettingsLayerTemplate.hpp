@@ -36,4 +36,6 @@ public:
     void createDarkBG(const cocos2d::CCSize& size, const cocos2d::CCPoint& position);
     void createLabel(const char* text, const cocos2d::CCPoint& position, float maxWidth, cocos2d::CCTextAlignment alignment = cocos2d::CCTextAlignment::kCCTextAlignmentLeft);
     SettingsInput* createInput(const std::string& filter, const cocos2d::CCSize& size, const cocos2d::CCPoint& position, const SettingsInput::ConvertFunc& convertFunc);
+
+    static geode::Result<> applyInt(const char* rawStr, int* value);
 };

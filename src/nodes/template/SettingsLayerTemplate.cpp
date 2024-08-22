@@ -116,3 +116,15 @@ SettingsInput* SettingsLayerTemplate::createInput(const std::string& filter, con
 
     m_inputNodes.push_back(input);
 }*/
+
+geode::Result<> SettingsLayerTemplate::applyInt(const char* rawStr, int* value) {
+    Result<> res = Ok();
+
+    char *endPtr;
+    *value = strtol(rawStr, &endPtr, 10);
+
+    // failed to convert
+    if(*endPtr != '\0') res = Err("Invalid int in input node!");
+
+    return res;
+}

@@ -282,13 +282,11 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
         return;
     }
 
-    m_audioCodecContext->bit_rate = 192000; // temp
+    m_audioCodecContext->bit_rate = m_renderParams->m_audioBitrate * 1000;
     m_audioCodecContext->strict_std_compliance = -2;
     m_audioCodecContext->codec_type = AVMEDIA_TYPE_AUDIO;
  
-    //m_audioCodecContext->sample_fmt = AV_SAMPLE_FMT_S16;
     m_audioCodecContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
-    //m_audioCodecContext->sample_rate = 44100;
     m_audioCodecContext->sample_rate = select_sample_rate(m_audioCodec);
     m_audioCodecContext->time_base = AVRational { 1, m_audioCodecContext->sample_rate };
 

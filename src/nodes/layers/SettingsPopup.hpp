@@ -18,6 +18,7 @@ public:
 
     SettingsSection* m_checkboxesSection;
     SettingsSection* m_menuTypeSection;
+    geode::ScrollLayer* m_scrollLayer;
 
     std::vector<SettingsSection*> m_settingsSections;
     std::vector<SettingsLayerTemplate*> m_settingsLayers;
