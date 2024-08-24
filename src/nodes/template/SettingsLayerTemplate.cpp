@@ -94,29 +94,6 @@ SettingsInput* SettingsLayerTemplate::createInput(const std::string& filter, con
     return input;
 }
 
-/*void SettingsLayerTemplate::createTextInput(const char* labelText, const std::string& filter, const SettingsInput::ConvertFunc& convertFunc) {
-    CCSize size = this->getContentSize();
-
-    // title label
-    auto titleLabel = CCLabelBMFont::create(labelText, "bigFont.fnt");
-    titleLabel->setAnchorPoint(CCPoint { 0.f, 0.f });
-    titleLabel->setPosition(CCPoint { -(size.width / 2 - 10.f), m_yPosCursor });
-    titleLabel->limitLabelWidth(160.f, .55f, .1f);
-
-    this->addChild(titleLabel);
-
-    this->setCursorY(m_yPosCursor - 18.f);
-
-    // input node
-    auto input = SettingsInput::create(filter, size.width - 10.f, convertFunc);
-    input->setPosition(CCPoint { 0.f, m_yPosCursor });
-
-    this->setCursorY(m_yPosCursor - 30.f);
-    this->addChild(input);
-
-    m_inputNodes.push_back(input);
-}*/
-
 geode::Result<> SettingsLayerTemplate::applyInt(const char* rawStr, int* value) {
     Result<> res = Ok();
 

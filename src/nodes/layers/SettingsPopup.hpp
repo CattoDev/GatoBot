@@ -29,9 +29,9 @@ public:
     static SettingsPopup* create(BotStatus);
 
     bool init(BotStatus);
-    geode::prelude::CCSize createMenuForStatus(BotStatus);
-    CCMenuItemSpriteExtra* createButton(const char* caption, const char* texture, float scale, geode::prelude::SEL_MenuHandler cb);
-    CCTextInputNode* createInput(const char* caption, geode::prelude::CCSize size, std::string filter = "");
+    cocos2d::CCSize createMenuForStatus(BotStatus);
+    CCMenuItemSpriteExtra* createButton(const char* caption, const char* texture, float scale, cocos2d::SEL_MenuHandler cb);
+    CCTextInputNode* createInput(const char* caption, cocos2d::CCSize size, std::string filter = "");
     void createCheckbox(const char* caption, bool toggled, std::string infoText = "");
 
     int getFPS();

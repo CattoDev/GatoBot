@@ -4,14 +4,14 @@
 
 class PopupTemplate : public FLAlertLayer {
 public:
-    geode::prelude::extension::CCScale9Sprite* m_bgBorder;
-    geode::prelude::CCLayerGradient* m_bgGradient;
-    geode::prelude::CCClippingNode* m_bgClipping;
+    cocos2d::extension::CCScale9Sprite* m_bgBorder;
+    cocos2d::CCLayerGradient* m_bgGradient;
+    cocos2d::CCClippingNode* m_bgClipping;
 
 public:
     virtual void show() override;
 
     bool init() override;
     void incrementForcePrio();
-    void setBackground(geode::prelude::CCSize const&);
+    void setBackground(cocos2d::CCSize const&);
 };

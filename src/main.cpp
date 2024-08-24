@@ -6,12 +6,7 @@
 
 using namespace geode::prelude;
 
-class $modify(MenuLayer) {
-    bool init() {
-        if(!MenuLayer::init()) return false;
-        
-        GatoBot::get()->updateHooks();
-
-        return true;
-    }
-};
+$on_mod(Loaded) {
+    // initialize GatoBot
+    GatoBot::get();
+}

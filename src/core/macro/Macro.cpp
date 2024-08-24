@@ -19,11 +19,11 @@ void Macro::prepareMacro(int tps) {
     m_tps = tps;
 
     // allocate steps
-    m_allSteps.reserve(100000);
+    //m_allSteps.reserve(100000);
 }
 
-void Macro::addStep(StepState& step) {
-    m_allSteps.push_back(std::move(step));
+void Macro::addStep(const StepState& step) {
+    m_allSteps.push_back(step);
 }
 
 StepState& Macro::getStep(int stepIdx) {
@@ -100,17 +100,15 @@ void Macro::recordingFinished() {
                 // same holding state
                 if(cmd.m_isPush == lastOfKind.m_isPush) {
                     // remove command
-                    size_t iter = 0;
-                    for(auto& _cmd : m_allSteps[cmdPair.first].m_commands) {
-                        if(_cmd.m_button == cmd.m_button
-                        && _cmd.m_isPush == cmd.m_isPush
-                        && _cmd.m_isPlayer2 == cmd.m_isPlayer2
-                        ) {
-                            m_allSteps[cmdPair.first].m_commands.erase(m_allSteps[cmdPair.first].m_commands.begin() + iter);
-                            break;
-                        }
-                        iter++;
-                    }
+                    std::vector<PlayerButtonCommand>& cmds = m_allSteps[cmdPair.first].m_commands;
+
+                    auto pos = std::remove_if(cmds.begin(), cmds.end(), [&cmd](PlayerButtonCommand& _cmd) {
+                        return _cmd.m_button == cmd.m_button
+                            && _cmd.m_isPush == cmd.m_isPush
+                            && _cmd.m_isPlayer2 == cmd.m_isPlayer2
+                        ;
+                    });
+                    cmds.erase(pos, cmds.end());
                 }
                 else {
                     lastOfKind = cmd;

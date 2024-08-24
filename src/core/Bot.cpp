@@ -145,7 +145,7 @@ RenderParams* GatoBot::getRenderParams() {
 }
 
 Encoder* GatoBot::getEncoder() {
-    return m_encoder;
+    return m_encoder.get();
 }
 
 void GatoBot::applyRenderParams(const RenderParams& params) {
@@ -336,7 +336,7 @@ void GatoBot::botFinished(BotStatus oldStatus) {
     if(oldStatus == BotStatus::Rendering) {
         // free encoder
         m_encoder->encodingFinished();
-        CC_SAFE_DELETE(m_encoder);
+        m_encoder = nullptr;
 
         // reset audio settings
         this->resetVolume();

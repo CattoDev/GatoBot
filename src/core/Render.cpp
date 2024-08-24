@@ -24,7 +24,7 @@ Result<> GatoBot::setupRenderer() {
     fmod->m_system->setOutput(FMOD_OUTPUTTYPE_NOSOUND);
 
     // setup Encoder
-    m_encoder = new Encoder(&m_renderParams);
+    m_encoder = std::make_unique<Encoder>(&m_renderParams);
 
     result = m_encoder->getLastResult();
 
@@ -33,7 +33,7 @@ Result<> GatoBot::setupRenderer() {
         geode::log::error("{}", m_encoder->getLastResult().unwrapErr());
 
         // free Encoder
-        CC_SAFE_DELETE(m_encoder);
+        m_encoder = nullptr;
     }
 
     log::debug("GatoBot::setupRenderer finished");

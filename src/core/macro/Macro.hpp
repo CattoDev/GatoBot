@@ -27,7 +27,7 @@ public:
 public:
     void prepareMacro(int tps);
 
-    void addStep(StepState& step);
+    void addStep(const StepState& step);
     StepState& getStep(int stepIdx);
     StepState& getLastStep();
     std::vector<PlayerButtonCommand> getLastButtonCommands();

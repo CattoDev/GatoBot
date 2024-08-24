@@ -2,7 +2,7 @@
 
 using namespace geode::prelude;
 
-GBAlertLayer* GBAlertLayer::create(const char* title, std::string text, const char* btn1, const char* btn2, std::function<void(FLAlertLayer*, geode::prelude::CCObject*)> callback) {
+GBAlertLayer* GBAlertLayer::create(const char* title, std::string text, const char* btn1, const char* btn2, std::function<void(FLAlertLayer*, cocos2d::CCObject*)> callback) {
     auto pRet = new GBAlertLayer();
 
     if(pRet && pRet->init(title, text, btn1, btn2, callback)) {
@@ -13,7 +13,7 @@ GBAlertLayer* GBAlertLayer::create(const char* title, std::string text, const ch
     return nullptr;
 }
 
-bool GBAlertLayer::init(const char* title, std::string text, const char* btn1text, const char* btn2text, std::function<void(FLAlertLayer*, geode::prelude::CCObject*)> callback) {
+bool GBAlertLayer::init(const char* title, std::string text, const char* btn1text, const char* btn2text, std::function<void(FLAlertLayer*, cocos2d::CCObject*)> callback) {
     if(!PopupTemplate::init()) 
         return false;
 

@@ -78,7 +78,7 @@ Encoder::~Encoder() {
     CC_SAFE_RELEASE(m_renderTexture);
     CC_SAFE_DELETE(m_audioCapture);
 
-    geode::log::debug("Encoder freed");
+    geode::log::debug("Encoder freed.");
 }
 
 geode::Result<> Encoder::getLastResult() {
