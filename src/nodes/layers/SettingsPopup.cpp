@@ -64,16 +64,32 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
     // Record / Replay
     if(status == BotStatus::Recording || status == BotStatus::Replaying) {
         // fps
+        auto fpsLabel = CCLabelBMFont::create("FPS:", "bigFont.fnt");
+        fpsLabel->setAnchorPoint(CCPoint { 1.f, .5f });
+        fpsLabel->setPosition({ -10.f, 35.f });
+
+        m_buttonMenu->addChild(fpsLabel);
+
         auto fpsInput = this->createInput("TPS", { 100, 40 }, "0123456789");
-        fpsInput->setPosition({ -50.f, 35.f });
-        fpsInput->setTouchEnabled(status == BotStatus::Recording);
+        fpsInput->setPosition({ 50.f, 35.f });
+        //fpsInput->setTouchEnabled(status == BotStatus::Recording);
+        fpsInput->setTouchEnabled(false); // disable TPS input for now
+        fpsInput->setLabelNormalColor(ccColor3B { 100, 100, 100 });
+        
         fpsInput->setString(std::to_string(this->getFPS()));
 
         m_buttonMenu->addChild(fpsInput);
 
         // speed
+        auto speedLabel = CCLabelBMFont::create("Speed:", "bigFont.fnt");
+        speedLabel->setAnchorPoint(CCPoint { 1.f, .5f });
+        speedLabel->setPosition({ -10.f, -15.f });
+        speedLabel->limitLabelWidth(90.f, 1.f, .1f);
+
+        m_buttonMenu->addChild(speedLabel);
+
         auto speedInput = this->createInput("Speed", { 100, 40 }, "0123456789.");
-        speedInput->setPosition({ -50.f, -15.f });
+        speedInput->setPosition({ 50.f, -15.f });
         speedInput->setString(std::to_string(GatoBot::get()->getMainSpeed()));
 
         m_buttonMenu->addChild(speedInput);
@@ -88,7 +104,7 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
 
             m_buttonMenu->addChild(m_checkboxesSection);
 
-            this->createCheckbox("Include audio", true, "Include the level song.");
+            this->createCheckbox("Include audio", true, "Include game audio in the exported video.");
         }
 
         // settings menu buttons
@@ -228,7 +244,8 @@ int SettingsPopup::getFPS() {
         return GatoBot::get()->getMacro().getFPS();
     }*/
 
-    return 240;
+    //return 240;
+    return m_renderParams.m_tps;
 }
 
 const char* SettingsPopup::statusToStr(BotStatus status) {
@@ -269,7 +286,7 @@ void SettingsPopup::applyRenderSettings(RenderParams* params) {
 
 void SettingsPopup::createInputBackgrounds() {
     for(auto& input : m_inputNodes) {
-        auto bg = extension::CCScale9Sprite::create("square02_small.png", { 0, 0, 40.f, 40.f });
+        auto bg = CCScale9Sprite::create("square02_small.png", { 0, 0, 40.f, 40.f });
         bg->setPosition(m_buttonMenu->convertToWorldSpace(input->getPosition()));
         bg->setContentSize(input->getContentSize());
         bg->setOpacity(100);
@@ -342,7 +359,9 @@ void SettingsPopup::onStart(CCObject*) {
         VERIFY_NODE(VERIFY_FLOAT, m_inputNodes[1]);
 
         auto FPS = std::stoi(m_inputNodes[0]->getString());
-        bot->getMacro().prepareMacro(FPS);
+
+        //bot->getRenderParams()->m_tps = FPS;
+        bot->resetMacro();
         bot->setMainSpeed(std::strtof(m_inputNodes[1]->getString().c_str(), nullptr));
     }
     else {

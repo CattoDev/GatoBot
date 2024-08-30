@@ -26,7 +26,7 @@ struct StepState {
 struct RenderParams {
     std::string m_codec;
     std::string m_outputPath;
-    std::string m_songPath;
+    int m_tps = 240;
 
     int m_width = 0;
     int m_height = 0;

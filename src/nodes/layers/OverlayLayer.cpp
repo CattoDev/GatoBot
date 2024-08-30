@@ -53,22 +53,45 @@ bool OverlayLayer::init() {
     if(!PopupTemplate::init()) 
         return false;
 
+    auto winSize = CCDirector::get()->getWinSize();
+
+    // GatoBot label
+    {
+        auto label = CCLabelBMFont::create("GatoBot", "goldFont.fnt");
+        label->limitLabelWidth(100.f, 1.f, .1f);
+        label->setPosition(winSize / 2 + CCPoint { 0.f, 40.f });
+
+        m_mainLayer->addChild(label);
+    }
+
+    // add dark button menu bg
+    {
+        auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
+        bg->setContentSize(CCSize { 250.f, 50.f });
+        bg->setOpacity(100);
+        bg->setPosition(winSize / 2);
+
+        m_mainLayer->addChild(bg);
+    }
+
     // add buttons
-    auto addButton = [this](const char* sprName, float sprScale, SEL_MenuHandler callback) {
-        auto spr = CCSprite::createWithSpriteFrameName(sprName);
-        spr->setScale(sprScale);
-        auto btn = CCMenuItemSpriteExtra::create(spr, this, callback);
+    {
+        auto addButton = [this](const char* sprName, float sprScale, SEL_MenuHandler callback) {
+            auto spr = CCSprite::createWithSpriteFrameName(sprName);
+            spr->setScale(sprScale);
+            auto btn = CCMenuItemSpriteExtra::create(spr, this, callback);
 
-        m_buttonMenu->addChild(btn);
-    };
+            m_buttonMenu->addChild(btn);
+        };
 
-    addButton("GB_recordBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onRecord));
-    addButton("GB_playBtn_001.png"_spr, 1.f, menu_selector(OverlayLayer::onReplay));
-    addButton("GB_renderBtn_001.png"_spr, 1.f, menu_selector(OverlayLayer::onRender));
-    addButton("GB_saveBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onSave));
-    addButton("GB_loadBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onLoad));
+        addButton("GB_recordBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onRecord));
+        addButton("GB_playBtn_001.png"_spr, 1.f, menu_selector(OverlayLayer::onReplay));
+        addButton("GB_renderBtn_001.png"_spr, 1.f, menu_selector(OverlayLayer::onRender));
+        addButton("GB_saveBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onSave));
+        addButton("GB_loadBtn_002.png"_spr, 1.f, menu_selector(OverlayLayer::onLoad));
 
-    m_buttonMenu->alignItemsHorizontallyWithPadding(10);
+        m_buttonMenu->alignItemsHorizontallyWithPadding(10);
+    }
     
     return true;
 }

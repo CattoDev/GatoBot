@@ -17,7 +17,6 @@ private:
     int m_currentStep = 0;
     float m_firstSPF;
     float m_mainSpeed = 1.f;
-    //Encoder* m_encoder;
     std::unique_ptr<Encoder> m_encoder;
 
 public:

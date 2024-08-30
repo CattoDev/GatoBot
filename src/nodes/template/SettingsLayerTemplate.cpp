@@ -24,7 +24,7 @@ bool SettingsInput::init(const std::string& filter, const cocos2d::CCSize& size,
     auto _i = reinterpret_cast<_TextInput*>(m_inputNode);
 
     _i->getBGSprite()->removeFromParentAndCleanup(true);
-    auto bgSpr = extension::CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
+    auto bgSpr = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
     bgSpr->setScale(.5f);
     bgSpr->setOpacity(90);
     bgSpr->setContentSize(size * 2);
@@ -62,7 +62,7 @@ std::vector<SettingsInput*>& SettingsLayerTemplate::getInputNodes() {
 }
 
 void SettingsLayerTemplate::createDarkBG(const cocos2d::CCSize& size, const cocos2d::CCPoint& position) {
-    auto bg = extension::CCScale9Sprite::create("GB_squareBG.png"_spr, { 0.f, 0.f, 20.f, 20.f });
+    auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0.f, 0.f, 20.f, 20.f });
     bg->setContentSize(size);
     bg->setPosition(position);
     bg->setOpacity(75);

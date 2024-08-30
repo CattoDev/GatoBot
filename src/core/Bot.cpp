@@ -120,7 +120,7 @@ void GatoBot::resetMacro() {
     Macro macro;
 
     // TODO: tps bypass
-    macro.prepareMacro(240);
+    macro.prepareMacro(m_renderParams.m_tps);
     m_loadedMacro = std::move(macro);
 }
 
