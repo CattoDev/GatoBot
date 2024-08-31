@@ -37,7 +37,9 @@ class $modify(PlayLayer) {
         if(bot->getStatus() != BotStatus::Rendering) return true;
 
         // Rendering stuff
-        
+        if(auto enc = bot->getEncoder()) {
+            enc->setupInfoLabels();
+        }
 
         return true;
     }

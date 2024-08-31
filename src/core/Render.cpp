@@ -15,6 +15,7 @@ Result<> GatoBot::setupRenderer() {
     m_renderParams.m_timeSinceFrameRender = 1.f; // capture 1st frame
     m_renderParams.m_spf = 1.f / static_cast<float>(m_renderParams.m_fps);
     m_renderParams.m_spt = 1.f / static_cast<float>(m_loadedMacro.getTPS());
+    m_renderParams.m_totalFrames = static_cast<int>(std::roundf(static_cast<float>(m_loadedMacro.getStepCount()) * m_renderParams.m_spt * static_cast<float>(m_renderParams.m_fps)));
 
     // prepare audio
     this->copyVolume();

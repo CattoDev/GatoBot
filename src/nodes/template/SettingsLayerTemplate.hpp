@@ -6,6 +6,8 @@
 #include <functional>
 #include <any>
 
+#include <nodes/ui_nodes/DropdownNode.hpp>
+
 class SettingsInput : public cocos2d::CCMenu {
 public:
     enum ValueType { String, Int, Float };
@@ -36,6 +38,7 @@ public:
     void createDarkBG(const cocos2d::CCSize& size, const cocos2d::CCPoint& position);
     void createLabel(const char* text, const cocos2d::CCPoint& position, float maxWidth, cocos2d::CCTextAlignment alignment = cocos2d::CCTextAlignment::kCCTextAlignmentLeft);
     SettingsInput* createInput(const std::string& filter, const cocos2d::CCSize& size, const cocos2d::CCPoint& position, const SettingsInput::ConvertFunc& convertFunc);
+    DropdownNode* createDropdown(const std::vector<std::string>& options, cocos2d::CCSize size, float maxExtendedHeight);
 
     static geode::Result<> applyInt(const char* rawStr, int* value);
 };

@@ -24,7 +24,7 @@ bool SettingsInput::init(const std::string& filter, const cocos2d::CCSize& size,
     auto _i = reinterpret_cast<_TextInput*>(m_inputNode);
 
     _i->getBGSprite()->removeFromParentAndCleanup(true);
-    auto bgSpr = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
+    auto bgSpr = CCScale9Sprite::create("GB_squareBG.png"_spr, CCRect { 0.f, 0.f, 20.f, 20.f });
     bgSpr->setScale(.5f);
     bgSpr->setOpacity(90);
     bgSpr->setContentSize(size * 2);
@@ -62,7 +62,7 @@ std::vector<SettingsInput*>& SettingsLayerTemplate::getInputNodes() {
 }
 
 void SettingsLayerTemplate::createDarkBG(const cocos2d::CCSize& size, const cocos2d::CCPoint& position) {
-    auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0.f, 0.f, 20.f, 20.f });
+    auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, CCRect { 0.f, 0.f, 20.f, 20.f });
     bg->setContentSize(size);
     bg->setPosition(position);
     bg->setOpacity(75);
@@ -92,6 +92,12 @@ SettingsInput* SettingsLayerTemplate::createInput(const std::string& filter, con
     m_inputNodes.push_back(input);
 
     return input;
+}
+
+DropdownNode* SettingsLayerTemplate::createDropdown(const std::vector<std::string>& options, cocos2d::CCSize size, float maxExtendedHeight) {
+    auto dropdown = DropdownNode::create(options, size, maxExtendedHeight);
+
+    return dropdown;
 }
 
 geode::Result<> SettingsLayerTemplate::applyInt(const char* rawStr, int* value) {

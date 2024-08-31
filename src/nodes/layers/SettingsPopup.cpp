@@ -105,6 +105,8 @@ CCSize SettingsPopup::createMenuForStatus(BotStatus status) {
             m_buttonMenu->addChild(m_checkboxesSection);
 
             this->createCheckbox("Include audio", true, "Include game audio in the exported video.");
+            this->createCheckbox("Rendering info", true, "Display rendering info on screen.\n(Not shown in the exported video!)");
+            this->createCheckbox("Multithreaded\nencoder", true, "Utilize all CPU cores on encoding.");
         }
 
         // settings menu buttons
@@ -286,7 +288,7 @@ void SettingsPopup::applyRenderSettings(RenderParams* params) {
 
 void SettingsPopup::createInputBackgrounds() {
     for(auto& input : m_inputNodes) {
-        auto bg = CCScale9Sprite::create("square02_small.png", { 0, 0, 40.f, 40.f });
+        auto bg = CCScale9Sprite::create("square02_small.png", CCRect { 0.f, 0.f, 40.f, 40.f });
         bg->setPosition(m_buttonMenu->convertToWorldSpace(input->getPosition()));
         bg->setContentSize(input->getContentSize());
         bg->setOpacity(100);
@@ -383,6 +385,8 @@ void SettingsPopup::onStart(CCObject*) {
 
         // apply toggles
         m_renderParams.m_includeAudio = m_toggles.at(0)->isToggled();
+        m_renderParams.m_renderingLabels = m_toggles.at(1)->isToggled();
+        m_renderParams.m_encoderMultithread = m_toggles.at(2)->isToggled();
     }
 
     if(!settingsApplied) return;

@@ -66,7 +66,7 @@ bool OverlayLayer::init() {
 
     // add dark button menu bg
     {
-        auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
+        auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, CCRect { 0.f, 0.f, 20.f, 20.f });
         bg->setContentSize(CCSize { 250.f, 50.f });
         bg->setOpacity(100);
         bg->setPosition(winSize / 2);
@@ -96,6 +96,17 @@ bool OverlayLayer::init() {
     return true;
 }
 
+geode::Result<> OverlayLayer::verifyMods() {
+    Result<> res;
+
+    // check if CBF is enabled
+    if(Loader::get()->isModLoaded("syzzi.click_between_frames")) {
+        return Err("Click Between Frames is not currently supported by GatoBot!");
+    }
+
+    return res;
+}
+
 void OverlayLayer::onRecord(CCObject*) {
     auto bot = GatoBot::get();
 
@@ -114,6 +125,13 @@ void OverlayLayer::onRecord(CCObject*) {
             }
         })->show();
         
+        return;
+    }
+
+    // verify mods
+    auto modCheck = this->verifyMods();
+    if(modCheck.isErr()) {
+        GBAlertLayer::create("Error", fmt::format("<cr>{}</c>", modCheck.unwrapErr()), "OK")->show();
         return;
     }
     
@@ -137,6 +155,13 @@ void OverlayLayer::onReplay(CCObject*) {
         return;
     }
 
+    // verify mods
+    auto modCheck = this->verifyMods();
+    if(modCheck.isErr()) {
+        GBAlertLayer::create("Error", fmt::format("<cr>{}</c>", modCheck.unwrapErr()), "OK")->show();
+        return;
+    }
+
     SettingsPopup::create(BotStatus::Replaying)->show();
 }   
 
@@ -146,6 +171,13 @@ void OverlayLayer::onRender(CCObject*) {
     // finish rendering
     if(bot->getStatus() == BotStatus::Rendering) {
         (void)bot->changeStatus(BotStatus::Idle);
+        return;
+    }
+
+    // verify mods
+    auto modCheck = this->verifyMods();
+    if(modCheck.isErr()) {
+        GBAlertLayer::create("Error", fmt::format("<cr>{}</c>", modCheck.unwrapErr()), "OK")->show();
         return;
     }
 

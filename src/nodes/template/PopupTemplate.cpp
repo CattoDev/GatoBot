@@ -52,7 +52,7 @@ void PopupTemplate::setBackground(CCSize const& size) {
 
     // border
     if(!m_bgBorder) {
-        m_bgBorder = CCScale9Sprite::create("GJ_square07.png", { 0.f, 0.f, 80.f, 80.f });
+        m_bgBorder = CCScale9Sprite::create("GJ_square07.png", CCRect { 0.f, 0.f, 80.f, 80.f });
         m_bgBorder->setPosition(winSize / 2);
 
         m_mainLayer->addChild(m_bgBorder);
@@ -68,7 +68,7 @@ void PopupTemplate::setBackground(CCSize const& size) {
 
     // round corners
     if(!m_bgClipping) {
-        auto stencil = CCScale9Sprite::create("square02_001.png", { 0, 0, 80, 80 });
+        auto stencil = CCScale9Sprite::create("square02_001.png", CCRect { 0.f, 0.f, 80.f, 80.f });
         stencil->setPosition(winSize / 2);
 
         m_bgClipping = CCClippingNode::create(stencil);

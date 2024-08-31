@@ -44,16 +44,21 @@ private:
     int m_currentFrame = 0;
     FMODCapture* m_audioCapture = nullptr;
     std::vector<float> m_audioBuffer;
+    float m_totalRenderingTime = 0;
 
     GLint m_oldFBO;
     GLuint m_FBO;
     GLint m_oldRBO;
+
+    // info labels
+    geode::Ref<cocos2d::CCLabelBMFont> m_infoLabel = nullptr;
 
 private:
     AVFrame* allocateAVFrame(int pixFmt, int width, int height);
     void setupEncoder(const RenderParams& params);
     void setupFMODCapture();
     void setupAudioEncoder(const RenderParams& params);
+    void updateInfoLabels();
     void sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx);
 
 public:
@@ -66,6 +71,8 @@ public:
     void processFrameData();
     void processAudio();
     void captureFrame();
+    void setupInfoLabels();
+    void toggleLabels(bool show);
     void visit();
     void encodingFinished();
     void levelStarted();

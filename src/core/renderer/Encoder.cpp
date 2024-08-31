@@ -143,7 +143,10 @@ void Encoder::setupEncoder(const RenderParams& params) {
 	m_videoCodecContext->rc_max_rate = params.m_videoBitrate * 1000;
 	m_videoCodecContext->rc_min_rate = params.m_videoBitrate * 1000;
 
-    m_videoCodecContext->thread_count = std::thread::hardware_concurrency();
+    // set cores
+    if(m_renderParams->m_encoderMultithread) {
+        m_videoCodecContext->thread_count = std::thread::hardware_concurrency();
+    }
 
     // needed for x264 to work
     m_videoCodecContext->me_range = 16;
@@ -155,9 +158,12 @@ void Encoder::setupEncoder(const RenderParams& params) {
 	m_videoCodecContext->max_b_frames = 3;
 	m_videoCodecContext->refs = 3;
 
-    av_opt_set(m_videoCodecContext->priv_data, "preset", "slow", 0);
-    av_opt_set(m_videoCodecContext->priv_data, "crf", "10", 0);
-	av_opt_set(m_videoCodecContext->priv_data, "tune", "zerolatency", 0);
+    //av_opt_set(m_videoCodecContext->priv_data, "preset", "slow", 0);
+    //av_opt_set(m_videoCodecContext->priv_data, "crf", "10", 0);
+	//av_opt_set(m_videoCodecContext->priv_data, "tune", "zerolatency", 0);
+    av_opt_set(m_videoCodecContext->priv_data, "preset", m_renderParams->m_x264_preset.c_str(), 0);
+    av_opt_set(m_videoCodecContext->priv_data, "crf", m_renderParams->m_x264_crf.c_str(), 0);
+	av_opt_set(m_videoCodecContext->priv_data, "tune", m_renderParams->m_x264_tune.c_str(), 0);
 
     // create video stream
     if(!(m_videoStream = avformat_new_stream(m_formatContext, m_videoCodec))) {
@@ -338,6 +344,25 @@ void Encoder::setupAudioEncoder(const RenderParams& params) {
     m_audioBuffer.resize(m_audioBufferSize);
 }
 
+void Encoder::updateInfoLabels() {
+    if(!m_renderParams->m_renderingLabels) return;
+
+    std::string formatted = std::format(
+        "Rendered frames: {}/{}\n"
+        "TPS: {}\n"
+        "Video time: {:.4f}s\n"
+        "Audio time: {:.4f}s\n"
+        "Render specific time: {:.4f}s",
+        m_currentFrame, m_renderParams->m_totalFrames,
+        m_renderParams->m_tps,
+        m_videoTime,
+        m_audioTime,
+        m_totalRenderingTime
+    );
+
+    m_infoLabel->setString(formatted.c_str());
+}
+
 void Encoder::sendFrame(AVFrame* frame, AVStream* stream, AVCodecContext* codecCtx) {
     int errCode = avcodec_send_frame(codecCtx, frame);
     if(errCode != 0) {
@@ -443,8 +468,8 @@ void Encoder::processAudio() {
 }
 
 void Encoder::captureFrame() {
-    auto dir = CCDirector::get();
-    
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     // set custom viewport
     glViewport(0, 0, m_renderParams->m_width, m_renderParams->m_height);
 
@@ -466,12 +491,42 @@ void Encoder::captureFrame() {
 
     // process audio frame
     this->processAudio();
+
+    // calculate rendering time
+    m_totalRenderingTime += static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime).count()) / 1000.f;
+
+    // update rendering labels
+    this->updateInfoLabels();
+}
+
+void Encoder::setupInfoLabels() {
+    if(!m_renderParams->m_renderingLabels) return;
+
+    auto uiLayer = PlayLayer::get()->m_uiLayer;
+
+    m_infoLabel = CCLabelBMFont::create("", "chatFont.fnt");
+    m_infoLabel->setAnchorPoint(CCPoint { 0.f, 0.f });
+    m_infoLabel->setPosition(CCPoint { 5.f, 5.f });
+    m_infoLabel->setScale(.8f);
+
+    uiLayer->addChild(m_infoLabel, 10);
+}
+
+void Encoder::toggleLabels(bool show) {
+    if(m_infoLabel) {
+        m_infoLabel->setVisible(show);
+    }
 }
 
 void Encoder::visit() {
-    PlayLayer::get()->visit(); // TEMP
+    // hide info labels
+    this->toggleLabels(false);
 
-    // TODO: rewrite PlayLayer::visit to allow text on top of a rendering scene
+    // draw PlayLayer
+    PlayLayer::get()->visit();
+
+    // show info labels
+    this->toggleLabels(true);
 }
 
 void Encoder::encodingFinished() {
@@ -487,6 +542,9 @@ void Encoder::encodingFinished() {
     // stop capturing FMOD
     if(m_audioCapture) m_audioCapture->disable();
 
+    // remove label
+    m_infoLabel->removeFromParent();
+
     log::debug("Encoder::encodingFinished");
 }
 
@@ -494,7 +552,6 @@ void Encoder::levelStarted() {
     log::debug("Encoder::levelStarted");
 
     m_audioCapture->begin();
-    //m_audioCapture->processed();
 }
 
 cocos2d::CCSize Encoder::getDesignResolution(int width, int height) {

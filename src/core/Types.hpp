@@ -35,12 +35,21 @@ struct RenderParams {
     int m_audioBitrate;
     float m_audioVolume = 1.f;
 
+    // x264 settings
+    std::string m_x264_preset;
+    std::string m_x264_crf;
+    std::string m_x264_tune;
+
+    // checkboxes
     bool m_includeAudio;
+    bool m_renderingLabels;
+    bool m_encoderMultithread;
 
     // set by the bot
     float m_timeSinceFrameRender;
     float m_spf; // seconds per frame
     float m_spt; // seconds per tick
+    int m_totalFrames;
     cocos2d::CCSize m_originalDesignRes;
     cocos2d::CCSize m_newDesignRes;
 

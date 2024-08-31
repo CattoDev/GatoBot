@@ -8,7 +8,7 @@ bool SettingsSection::init(const char* title, const cocos2d::CCSize& menuSize) {
     this->setContentSize(menuSize);
 
     // background
-    auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, { 0, 0, 20.f, 20.f });
+    auto bg = CCScale9Sprite::create("GB_squareBG.png"_spr, CCRect { 0.f, 0.f, 20.f, 20.f });
     bg->setContentSize(menuSize);
     bg->setOpacity(100);
 

@@ -14,6 +14,7 @@ public:
     void keyBackClicked() override;
 
     bool init() override;
+    geode::Result<> verifyMods();
 
     void onRecord(CCObject*);
     void onReplay(CCObject*);

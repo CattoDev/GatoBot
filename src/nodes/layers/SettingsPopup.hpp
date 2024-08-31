@@ -4,7 +4,7 @@
 
 #include <nodes/template/PopupTemplate.hpp>
 #include <nodes/layers/SettingsSection.hpp>
-#include <nodes/HighlightedButton.hpp>
+#include <nodes/ui_nodes/HighlightedButton.hpp>
 #include <nodes/template/SettingsLayerTemplate.hpp>
 
 class SettingsPopup : public PopupTemplate {
